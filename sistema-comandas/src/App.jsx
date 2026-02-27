@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 
-import { useAuth } from './hooks/useAuth'
+import { useAuth } from './contexts/AuthContext'
 
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -22,9 +22,7 @@ function RotasProtegidas() {
   if (carregando) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-amber-50">
-        <p className="text-amber-900 font-semibold">
-          Carregando...
-        </p>
+        <p className="text-amber-900 font-semibold">Carregando...</p>
       </div>
     )
   }
@@ -36,73 +34,31 @@ function RotasProtegidas() {
   return (
     <Routes>
       <Route path="/" element={<MainLayout />}>
-        <Route
-          index
-          element={
-            isAdmin
-              ? <Dashboard />
-              : <Navigate to="/comandas" replace />
-          }
-        />
-
+        <Route index element={isAdmin ? <Dashboard /> : <Navigate to="/comandas" replace />} />
         <Route path="comandas" element={<Comandas />} />
-<<<<<<< ours
-<<<<<<< ours
 
         <Route
           path="caixa"
-          element={
-            isAdmin
-              ? <Caixa />
-              : <Navigate to="/comandas" replace />
-          }
+          element={isAdmin ? <Caixa /> : <Navigate to="/comandas" replace />}
         />
 
         <Route
           path="produtos"
-          element={
-            isAdmin
-              ? <Produtos />
-              : <Navigate to="/comandas" replace />
-          }
+          element={isAdmin ? <Produtos /> : <Navigate to="/comandas" replace />}
         />
-
         <Route
           path="estoque"
-          element={
-            isAdmin
-              ? <Estoque />
-              : <Navigate to="/comandas" replace />
-          }
+          element={isAdmin ? <Estoque /> : <Navigate to="/comandas" replace />}
         />
-
         <Route
           path="financeiro"
-          element={
-            isAdmin
-              ? <Financeiro />
-              : <Navigate to="/comandas" replace />
-          }
+          element={isAdmin ? <Financeiro /> : <Navigate to="/comandas" replace />}
         />
-
         <Route
           path="relatorio-caixa"
-          element={
-            isAdmin
-              ? <RelatorioCaixa />
-              : <Navigate to="/comandas" replace />
-          }
+          element={isAdmin ? <RelatorioCaixa /> : <Navigate to="/comandas" replace />}
         />
 
-=======
-=======
->>>>>>> theirs
-        <Route path="caixa" element={isAdmin ? <Caixa /> : <Navigate to="/comandas" replace />} />
-        <Route path="produtos" element={isAdmin ? <Produtos /> : <Navigate to="/comandas" replace />} />
-        <Route path="estoque" element={isAdmin ? <Estoque /> : <Navigate to="/comandas" replace />} />
-        <Route path="financeiro" element={isAdmin ? <Financeiro /> : <Navigate to="/comandas" replace />} />
-        <Route path="relatorio-caixa" element={isAdmin ? <RelatorioCaixa /> : <Navigate to="/comandas" replace />} />
->>>>>>> theirs
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
