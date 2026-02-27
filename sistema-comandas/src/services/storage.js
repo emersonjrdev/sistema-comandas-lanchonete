@@ -69,8 +69,6 @@ export function excluirProduto(id) {
   saveDB(db)
 }
 
-<<<<<<< ours
-=======
 // --- Comandas ---
 
 export function getComandas() {
@@ -78,10 +76,6 @@ export function getComandas() {
   return (db.comandas || []).filter((c) => c.status === 'aberta')
 }
 
-<<<<<<< ours
->>>>>>> theirs
-=======
->>>>>>> theirs
 export function criarComanda(numeroComanda, cliente) {
   const db = getDB()
   const partes = []
@@ -106,11 +100,6 @@ export function criarComanda(numeroComanda, cliente) {
   return nova
 }
 
-// ✅ NOVA FUNÇÃO (ESSA FALTAVA)
-export function getComandas() {
-  const db = getDB()
-  return db.comandas || []
-}
 function calcularTotal(itens) {
   return itens.reduce(
     (acc, item) => acc + (item.subtotal ?? item.preco * item.quantidade),

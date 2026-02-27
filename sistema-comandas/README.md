@@ -2,7 +2,7 @@
 
 Projeto PDV com:
 - **Front-end:** React + Vite
-- **Back-end:** Node.js + Express + SQLite (`backend/`)
+- **Back-end:** Node.js + Express + Firebase Firestore (`backend/`)
 
 ---
 
@@ -22,7 +22,6 @@ npm run dev
 ```
 
 API padrão: `http://localhost:3001`
-
 Health check:
 ```bash
 curl http://localhost:3001/health
@@ -63,9 +62,11 @@ curl http://localhost:3001/health
 4. Variáveis de ambiente recomendadas:
    - `PORT=10000` (Render injeta automaticamente, opcional)
    - `CORS_ORIGIN=https://SEU-FRONT.vercel.app`
-   - `DB_PATH=/opt/render/project/src/backend/data/database.sqlite`
+   - `FIREBASE_PROJECT_ID=seu-projeto-firebase`
+   - `FIREBASE_CLIENT_EMAIL=firebase-adminsdk-...@seu-projeto-firebase.iam.gserviceaccount.com`
+   - `FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"`
 
-> O SQLite funciona para começar, mas em produção com escala é recomendado migrar para Postgres.
+> O backend agora usa Firestore. Crie uma Service Account no Firebase e use essas credenciais como variáveis no Render.
 
 ---
 
@@ -95,3 +96,21 @@ Hoje o front ainda usa `localStorage`. Para usar API em produção:
 - trocar gradualmente funções de `storage.js`/`authService.js` por chamadas HTTP.
 
 Se quiser, no próximo passo eu já te entrego essa integração pronta.
+
+## 6) Deploy com arquivos prontos no repositório
+
+Este projeto já inclui:
+
+- `render.yaml` na raiz (cria o serviço da API usando `backend/` no Render).
+- `vercel.json` na raiz (fallback de rotas SPA para o front na Vercel).
+
+### Como usar no Render
+- No dashboard, escolha **New > Blueprint** e aponte para este repositório.
+- Depois configure apenas os secrets:
+  - `CORS_ORIGIN` (URL da Vercel).
+
+### Como usar na Vercel
+- Importe o repositório e mantenha:
+  - Build: `npm run build`
+  - Output: `dist`
+- Configure `VITE_API_URL` com a URL do serviço Render.
