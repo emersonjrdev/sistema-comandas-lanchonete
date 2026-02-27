@@ -69,23 +69,16 @@ export function excluirProduto(id) {
   saveDB(db)
 }
 
-// --- Comandas ---
-
-export function getComandas() {
-  const db = getDB()
-  return (db.comandas || []).filter((c) => c.status === 'aberta')
-}
-
-export function criarComanda(mesa, cliente) {
+export function criarComanda(numeroComanda, cliente) {
   const db = getDB()
   const partes = []
-  if (mesa) partes.push(`Mesa ${mesa}`)
+  if (numeroComanda) partes.push(`Comanda ${numeroComanda}`)
   partes.push(cliente || 'Balcão')
   const identificacao = partes.join(' - ')
 
   const nova = {
     id: gerarId(),
-    mesa: mesa || null,
+    numeroComanda: numeroComanda || null,
     cliente: cliente || 'Balcão',
     identificacao,
     status: 'aberta',
@@ -93,12 +86,18 @@ export function criarComanda(mesa, cliente) {
     total: 0,
     criadaEm: new Date().toISOString(),
   }
+
   db.comandas = db.comandas || []
   db.comandas.push(nova)
   saveDB(db)
   return nova
 }
 
+// ✅ NOVA FUNÇÃO (ESSA FALTAVA)
+export function getComandas() {
+  const db = getDB()
+  return db.comandas || []
+}
 function calcularTotal(itens) {
   return itens.reduce(
     (acc, item) => acc + (item.subtotal ?? item.preco * item.quantidade),

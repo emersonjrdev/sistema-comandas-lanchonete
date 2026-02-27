@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ItemRow from './ItemRow'
 import {
   adicionarItem,
@@ -18,7 +18,7 @@ export default function ComandaDetalhe({
   onVoltar,
   isMobile = false,
 }) {
-  const [mostrarAdicionar, setMostrarAdicionar] = useState(false)
+  const [mostrarAdicionar, setMostrarAdicionar] = useState(isMobile)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState(1)
   const toast = useToast()
@@ -31,6 +31,12 @@ export default function ComandaDetalhe({
     )
 
   const produtosComEstoque = produtos.filter((p) => temEstoque(p.id, 1))
+
+  useEffect(() => {
+    if (isMobile) {
+      setMostrarAdicionar(true)
+    }
+  }, [isMobile])
 
   function handleAdicionarProduto() {
     if (!produtoSelecionado) return
@@ -46,7 +52,7 @@ export default function ComandaDetalhe({
       onComandaAtualizada(atualizada)
       setProdutoSelecionado('')
       setQuantidade(1)
-      setMostrarAdicionar(false)
+      setMostrarAdicionar(!isMobile) // no mobile continua aberto
     } else {
       playSomErro()
       toast.show('Não foi possível adicionar o item', 'error')
@@ -96,15 +102,17 @@ export default function ComandaDetalhe({
       </div>
 
       <div className="bg-white rounded-xl border-2 border-amber-200 p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+        <div className={`mb-4 ${isMobile ? 'space-y-3' : 'flex items-center justify-between'}`}>
           <h3 className="text-lg font-semibold text-amber-900">Itens</h3>
           {produtos.length > 0 && (
             <button
               type="button"
               onClick={() => setMostrarAdicionar(!mostrarAdicionar)}
-              className="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors touch-manipulation min-h-[44px]"
+              className={`rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors touch-manipulation min-h-[44px] ${
+                isMobile ? 'w-full px-4 py-3 text-lg' : 'px-4 py-2'
+              }`}
             >
-              + Adicionar Produto
+              {mostrarAdicionar ? 'Fechar adição de produto' : '+ Adicionar Produto'}
             </button>
           )}
         </div>

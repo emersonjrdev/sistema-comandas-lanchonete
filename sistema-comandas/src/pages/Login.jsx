@@ -30,6 +30,11 @@ export default function Login({ onLogin }) {
             <p className="text-stone-500 mt-2">PDV - Faça login para continuar</p>
           </div>
 
+          <div className="mb-5 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+            <p><strong>Admin:</strong> admin / admin123</p>
+            <p><strong>Funcionário:</strong> funcionario / func123</p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-5">
             {erro && (
               <div

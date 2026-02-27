@@ -4,24 +4,57 @@ function gerarId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
+function usuariosPadrao() {
+  return [
+    {
+      id: gerarId(),
+      nome: 'admin',
+      senha: 'admin123',
+      perfil: 'admin',
+    },
+    {
+      id: gerarId(),
+      nome: 'funcionario',
+      senha: 'func123',
+      perfil: 'funcionario',
+    },
+  ]
+}
+
 function getUsuarios() {
   try {
     const data = localStorage.getItem(USUARIOS_KEY)
     const usuarios = data ? JSON.parse(data) : []
-    if (usuarios.length === 0) {
-      const maria = {
+
+    const base = Array.isArray(usuarios) ? [...usuarios] : []
+
+    const temAdmin = base.some((u) => u?.nome?.toLowerCase() === 'admin')
+    const temFuncionario = base.some((u) => u?.nome?.toLowerCase() === 'funcionario')
+
+    if (!temAdmin) {
+      base.push({
         id: gerarId(),
-        nome: 'Maria',
+        nome: 'admin',
         senha: 'admin123',
         perfil: 'admin',
-      }
-      const usuariosIniciais = [maria]
-      localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuariosIniciais))
-      return usuariosIniciais
+      })
     }
-    return usuarios
+
+    if (!temFuncionario) {
+      base.push({
+        id: gerarId(),
+        nome: 'funcionario',
+        senha: 'func123',
+        perfil: 'funcionario',
+      })
+    }
+
+    localStorage.setItem(USUARIOS_KEY, JSON.stringify(base))
+    return base
   } catch {
-    return []
+    const padrao = usuariosPadrao()
+    localStorage.setItem(USUARIOS_KEY, JSON.stringify(padrao))
+    return padrao
   }
 }
 
