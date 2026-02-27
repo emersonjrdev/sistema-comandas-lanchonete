@@ -8,7 +8,7 @@ import {
 } from '../../services/storage'
 import { temEstoque } from '../../services/estoqueService'
 import { useToast } from '../../contexts/ToastContext'
-import { playSomErro } from '../../utils/sons'
+import { playSomAcao, playSomErro } from '../../utils/sons'
 
 export default function ComandaDetalhe({
   comanda,
@@ -49,6 +49,7 @@ export default function ComandaDetalhe({
 
     const atualizada = adicionarItem(comanda.id, produtoSelecionado, quantidade)
     if (atualizada) {
+      playSomAcao()
       onComandaAtualizada(atualizada)
       setProdutoSelecionado('')
       setQuantidade(1)
@@ -76,6 +77,7 @@ export default function ComandaDetalhe({
     }
     const enviada = enviarParaCaixa(comanda.id)
     if (enviada) {
+      playSomAcao()
       toast.show('Comanda enviada para o caixa!')
       onEnviada()
     } else {

@@ -72,6 +72,7 @@ export default function Caixa() {
     const v = parseFloat(valorInicial.replace(',', '.')) || 0
     const r = abrirCaixa(v)
     if (r.sucesso) {
+      playSomVenda()
       setMostrarAbertura(false)
       setValorInicial('')
       refresh()
@@ -87,6 +88,7 @@ export default function Caixa() {
     const v = parseFloat(valorContado.replace(',', '.')) || 0
     const r = fecharCaixa(v)
     if (r.sucesso) {
+      playSomVenda()
       setMostrarFechamento(false)
       setValorContado('')
       refresh()
@@ -125,6 +127,7 @@ export default function Caixa() {
     }
     const venda = adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, quantidade)
     if (venda) {
+      playSomVenda()
       refresh()
       setVendaAdicionarItem(null)
       setProdutoSelecionado('')

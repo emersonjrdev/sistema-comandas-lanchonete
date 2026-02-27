@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { playSomVenda, playSomErro } from '../utils/sons'
 
 export default function Login({ onLogin }) {
   const [nome, setNome] = useState('')
@@ -14,7 +15,11 @@ export default function Login({ onLogin }) {
     e.preventDefault()
     setErro('')
     const resultado = onLogin(nome.trim(), senha)
-    if (resultado.sucesso) return
+    if (resultado.sucesso) {
+      playSomVenda()
+      return
+    }
+    playSomErro()
     setErro(resultado.erro || 'Erro ao fazer login')
     setSenha('')
   }

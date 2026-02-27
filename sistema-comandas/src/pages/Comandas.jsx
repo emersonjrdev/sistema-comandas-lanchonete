@@ -4,6 +4,7 @@ import ComandaDetalhe from '../components/comandas/ComandaDetalhe'
 import { criarComanda } from '../services/storage'
 import { useComandas, useProdutos } from '../hooks/usePDV'
 import { useIsMobile } from '../hooks/useResponsive'
+import { playSomAcao, playSomErro } from '../utils/sons'
 
 export default function ComandasPage() {
   const [comandas, refreshComandas] = useComandas()
@@ -32,6 +33,11 @@ export default function ComandasPage() {
     if (cliente === null) return
 
     const nova = criarComanda(numeroComanda?.trim() || null, cliente?.trim() || 'Balcão')
+    if (!nova) {
+      playSomErro()
+      return
+    }
+    playSomAcao()
     refreshComandas()
     setComandaSelecionada(nova)
   }

@@ -21,6 +21,29 @@ export function playSomVenda() {
   }
 }
 
+export function playSomAcao() {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+
+    oscillator.type = 'triangle'
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
+    oscillator.frequency.linearRampToValueAtTime(520, audioContext.currentTime + 0.08)
+
+    gainNode.gain.setValueAtTime(0.12, audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.12)
+
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(audioContext.currentTime + 0.12)
+  } catch {
+    // Fallback silencioso
+  }
+}
+
 export function playSomErro() {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)()

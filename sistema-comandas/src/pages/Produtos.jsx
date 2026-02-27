@@ -5,6 +5,7 @@ import {
   editarProduto,
   excluirProduto,
 } from '../services/storage'
+import { playSomAcao, playSomErro } from '../utils/sons'
 
 export default function Produtos() {
   const [produtos, refreshProdutos] = useProdutos()
@@ -26,7 +27,10 @@ export default function Produtos() {
     e.preventDefault()
     const nome = formNome.trim()
     const preco = parseFloat(formPreco)
-    if (!nome || isNaN(preco) || preco < 0) return
+    if (!nome || isNaN(preco) || preco < 0) {
+      playSomErro()
+      return
+    }
 
     const estoque = Math.max(0, parseInt(formEstoque, 10) || 0)
     if (editando) {
@@ -34,6 +38,7 @@ export default function Produtos() {
     } else {
       addProduto({ nome, preco, estoque })
     }
+    playSomAcao()
     refreshProdutos()
     limparForm()
   }
@@ -49,6 +54,7 @@ export default function Produtos() {
   function handleExcluir(produto) {
     if (window.confirm(`Excluir "${produto.nome}"?`)) {
       excluirProduto(produto.id)
+      playSomAcao()
       refreshProdutos()
       if (editando?.id === produto.id) limparForm()
     }
