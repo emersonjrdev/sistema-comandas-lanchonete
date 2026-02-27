@@ -23,16 +23,10 @@ export default function Login({ onLogin }) {
     <div className="min-h-screen bg-amber-50/80 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl border-2 border-amber-200 shadow-xl p-8">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-amber-900">
-              Padaria Grande Família
+              Padaria Grande Familia
             </h1>
-            <p className="text-stone-500 mt-2">PDV - Faça login para continuar</p>
-          </div>
-
-          <div className="mb-5 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
-            <p><strong>Admin:</strong> admin / admin123</p>
-            <p><strong>Funcionário:</strong> funcionario / func123</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">

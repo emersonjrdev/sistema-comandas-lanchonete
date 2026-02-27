@@ -24,27 +24,36 @@ function saveUsuarios(users) {
 
 function garantirUsuariosPadrao() {
   const usuarios = getUsuariosRaw()
-  if (!Array.isArray(usuarios) || usuarios.length === 0) {
-    const padrao = [
-      {
-        id: gerarId(),
-        nome: 'admin',
-        senha: 'admin123',
-        perfil: 'admin',
-        nomeExibicao: 'Administrador',
-      },
-      {
-        id: gerarId(),
-        nome: 'funcionario',
-        senha: 'func123',
-        perfil: 'funcionario',
-        nomeExibicao: 'Funcionário',
-      },
-    ]
-    saveUsuarios(padrao)
-    return padrao
+  const lista = Array.isArray(usuarios) ? [...usuarios] : []
+
+  const temAdmin = lista.some((u) => String(u?.nome).toLowerCase() === 'admin')
+  const temFuncionario = lista.some((u) => String(u?.nome).toLowerCase() === 'funcionario')
+
+  if (!temAdmin) {
+    lista.push({
+      id: gerarId(),
+      nome: 'admin',
+      senha: 'admin123',
+      perfil: 'admin',
+      nomeExibicao: 'Administrador',
+    })
   }
-  return usuarios
+
+  if (!temFuncionario) {
+    lista.push({
+      id: gerarId(),
+      nome: 'funcionario',
+      senha: 'func123',
+      perfil: 'funcionario',
+      nomeExibicao: 'Funcionário',
+    })
+  }
+
+  if (lista.length !== usuarios.length) {
+    saveUsuarios(lista)
+  }
+
+  return lista
 }
 
 /**
