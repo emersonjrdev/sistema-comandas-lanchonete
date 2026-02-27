@@ -69,6 +69,19 @@ export function excluirProduto(id) {
   saveDB(db)
 }
 
+<<<<<<< ours
+=======
+// --- Comandas ---
+
+export function getComandas() {
+  const db = getDB()
+  return (db.comandas || []).filter((c) => c.status === 'aberta')
+}
+
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
 export function criarComanda(numeroComanda, cliente) {
   const db = getDB()
   const partes = []

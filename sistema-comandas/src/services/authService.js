@@ -26,6 +26,8 @@ function getUsuarios() {
     const data = localStorage.getItem(USUARIOS_KEY)
     const usuarios = data ? JSON.parse(data) : []
 
+<<<<<<< ours
+<<<<<<< ours
     const base = Array.isArray(usuarios) ? [...usuarios] : []
 
     const temAdmin = base.some((u) => u?.nome?.toLowerCase() === 'admin')
@@ -33,6 +35,20 @@ function getUsuarios() {
 
     if (!temAdmin) {
       base.push({
+=======
+=======
+>>>>>>> theirs
+    const temAdmin = usuarios.some((u) => u.nome?.toLowerCase() === 'admin')
+    const temFuncionario = usuarios.some((u) => u.nome?.toLowerCase() === 'funcionario')
+
+    const usuariosNormalizados = [...usuarios]
+
+    if (!temAdmin) {
+      usuariosNormalizados.push({
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
         id: gerarId(),
         nome: 'admin',
         senha: 'admin123',
@@ -41,7 +57,15 @@ function getUsuarios() {
     }
 
     if (!temFuncionario) {
+<<<<<<< ours
+<<<<<<< ours
       base.push({
+=======
+      usuariosNormalizados.push({
+>>>>>>> theirs
+=======
+      usuariosNormalizados.push({
+>>>>>>> theirs
         id: gerarId(),
         nome: 'funcionario',
         senha: 'func123',
@@ -49,8 +73,22 @@ function getUsuarios() {
       })
     }
 
+<<<<<<< ours
+<<<<<<< ours
     localStorage.setItem(USUARIOS_KEY, JSON.stringify(base))
     return base
+=======
+=======
+>>>>>>> theirs
+    if (usuariosNormalizados.length !== usuarios.length) {
+      localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuariosNormalizados))
+    }
+
+    return usuariosNormalizados
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
   } catch {
     const padrao = usuariosPadrao()
     localStorage.setItem(USUARIOS_KEY, JSON.stringify(padrao))

@@ -52,7 +52,15 @@ export default function ComandaDetalhe({
       onComandaAtualizada(atualizada)
       setProdutoSelecionado('')
       setQuantidade(1)
+<<<<<<< ours
+<<<<<<< ours
       setMostrarAdicionar(!isMobile) // no mobile continua aberto
+=======
+      setMostrarAdicionar(!isMobile)
+>>>>>>> theirs
+=======
+      setMostrarAdicionar(!isMobile)
+>>>>>>> theirs
     } else {
       playSomErro()
       toast.show('Não foi possível adicionar o item', 'error')

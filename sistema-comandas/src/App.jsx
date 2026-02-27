@@ -46,6 +46,8 @@ function RotasProtegidas() {
         />
 
         <Route path="comandas" element={<Comandas />} />
+<<<<<<< ours
+<<<<<<< ours
 
         <Route
           path="caixa"
@@ -92,6 +94,15 @@ function RotasProtegidas() {
           }
         />
 
+=======
+=======
+>>>>>>> theirs
+        <Route path="caixa" element={isAdmin ? <Caixa /> : <Navigate to="/comandas" replace />} />
+        <Route path="produtos" element={isAdmin ? <Produtos /> : <Navigate to="/comandas" replace />} />
+        <Route path="estoque" element={isAdmin ? <Estoque /> : <Navigate to="/comandas" replace />} />
+        <Route path="financeiro" element={isAdmin ? <Financeiro /> : <Navigate to="/comandas" replace />} />
+        <Route path="relatorio-caixa" element={isAdmin ? <RelatorioCaixa /> : <Navigate to="/comandas" replace />} />
+>>>>>>> theirs
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
