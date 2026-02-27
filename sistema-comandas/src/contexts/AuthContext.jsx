@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { login as loginService, getUsuarioPorId } from '../services/authService'
 
-const AuthContext = createContext(null)
+export const AuthContext = createContext(null) // ✅ apenas isso foi alterado
 
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null)
