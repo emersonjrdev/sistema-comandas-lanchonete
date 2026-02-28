@@ -287,23 +287,22 @@ app.delete('/produtos/:id', async (req, res) => {
 })
 
 app.get('/comandas', async (_, res) => {
-  const snap = await comandasCol.where('status', '==', 'aberta').orderBy('created_at', 'desc').get()
+  const snap = await comandasCol.where('status', '==', 'aberta').get()
   const payload = snap.docs.map((doc) => {
     const comanda = docToEntity(doc)
     return { ...comanda, itens: comanda.itens || [], total: Number(comanda.total || 0) }
-  })
+  }).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
   res.json(payload)
 })
 
 app.get('/comandas/aguardando-pagamento', async (_, res) => {
   const snap = await comandasCol
     .where('status', '==', 'aguardando_pagamento')
-    .orderBy('created_at', 'desc')
     .get()
   const payload = snap.docs.map((doc) => {
     const comanda = docToEntity(doc)
     return { ...comanda, itens: comanda.itens || [], total: Number(comanda.total || 0) }
-  })
+  }).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
   res.json(payload)
 })
 

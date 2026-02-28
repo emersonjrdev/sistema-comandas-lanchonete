@@ -38,8 +38,12 @@ export default function ComandasPage() {
       return
     }
     playSomAcao()
-    await refreshComandas()
     setComandaSelecionada(nova)
+    try {
+      await refreshComandas()
+    } catch {
+      // Mantém abertura da comanda mesmo se o refresh falhar.
+    }
   }
 
   function handleAbrirComanda(comanda) {
