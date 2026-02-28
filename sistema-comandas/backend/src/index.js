@@ -2,14 +2,30 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { initializeApp, cert, getApps } from 'firebase-admin/app'
-import { getFirestore, FieldValue } from 'firebase-admin/firestore'
+import { getFirestore } from 'firebase-admin/firestore'
+
+function normalizarPrivateKey(rawKey) {
+  if (!rawKey) return ''
+  let key = String(rawKey).trim()
+
+  // Suporta valor salvo com aspas externas no painel de env.
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1)
+  }
+
+  // Suporta chave em linha única com \n escapado.
+  return key.replace(/\\n/g, '\n')
+}
 
 function getFirebaseApp() {
   if (getApps().length > 0) return getApps()[0]
 
   const projectId = process.env.FIREBASE_PROJECT_ID
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  const privateKey = normalizarPrivateKey(process.env.FIREBASE_PRIVATE_KEY)
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
