@@ -14,10 +14,27 @@ export default function ComandasPage() {
   const bipadorRef = useRef(null)
   const isMobile = useIsMobile()
 
-  const comandasFiltradas = busca.trim()
-    ? comandas.filter((c) =>
-        c.identificacao?.toLowerCase().includes(busca.toLowerCase().trim())
-      )
+  function normalizarTexto(valor) {
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+  }
+
+  const termoBusca = normalizarTexto(busca)
+  const comandasFiltradas = termoBusca
+    ? comandas.filter((c) => {
+        const camposBusca = [
+          c.identificacao,
+          c.cliente,
+          c.numero_comanda,
+          c.numeroComanda,
+          c.id,
+        ]
+
+        return camposBusca.some((campo) => normalizarTexto(campo).includes(termoBusca))
+      })
     : comandas
 
   useEffect(() => {
@@ -95,15 +112,13 @@ export default function ComandasPage() {
           </div>
         )}
 
-        {isMobile && (
-          <input
-            type="search"
-            placeholder="Buscar comanda..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="w-full px-4 py-4 rounded-xl border-2 border-amber-200 text-lg focus:border-amber-500 outline-none"
-          />
-        )}
+        <input
+          type="search"
+          placeholder="Buscar comanda..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className="w-full px-4 py-4 rounded-xl border-2 border-amber-200 text-lg focus:border-amber-500 outline-none"
+        />
 
         <button
           type="button"
