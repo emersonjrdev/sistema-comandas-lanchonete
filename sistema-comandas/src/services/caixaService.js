@@ -46,3 +46,13 @@ export async function getTotaisHoje() {
 export async function getRelatoriosCaixa() {
   return apiRequest('/caixa/relatorios')
 }
+
+export async function limparDadosCaixa() {
+  try {
+    const result = await apiRequest('/caixa/dados', { method: 'DELETE' })
+    emitUpdate()
+    return result
+  } catch (error) {
+    return { sucesso: false, erro: error.message }
+  }
+}

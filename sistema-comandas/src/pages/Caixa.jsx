@@ -47,6 +47,7 @@ export default function Caixa() {
       totais,
       abrirCaixa,
       fecharCaixa,
+      limparDadosCaixa,
     },
   ] = useCaixa()
   const [produtos] = useProdutos()
@@ -109,6 +110,28 @@ export default function Caixa() {
     } else {
       toast.show(r.erro || 'Erro ao fechar caixa', 'error')
       playSomErro()
+    }
+  }
+
+  async function handleLimparDadosCaixa() {
+    const confirmou = window.confirm(
+      'Isso vai excluir o histórico de vendas e relatórios de fechamento do caixa. Deseja continuar?'
+    )
+    if (!confirmou) return
+
+    const confirmouNovamente = window.confirm(
+      'Confirma EXCLUIR os dados do caixa agora? Essa ação não pode ser desfeita.'
+    )
+    if (!confirmouNovamente) return
+
+    const resultado = await limparDadosCaixa()
+    if (resultado?.sucesso) {
+      playSomVenda()
+      await refresh()
+      toast.show('Dados do caixa excluídos com sucesso!')
+    } else {
+      playSomErro()
+      toast.show(resultado?.erro || 'Erro ao excluir dados do caixa', 'error')
     }
   }
 
@@ -255,6 +278,13 @@ export default function Caixa() {
             Fechar caixa
           </button>
         )}
+        <button
+          type="button"
+          onClick={handleLimparDadosCaixa}
+          className="px-4 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700"
+        >
+          Excluir dados do caixa
+        </button>
       </div>
 
       {mostrarAbertura && (

@@ -6,6 +6,7 @@ import {
   getCaixaAtual,
   abrirCaixa,
   fecharCaixa,
+  limparDadosCaixa,
   getRelatoriosCaixa,
 } from '../services/caixaService'
 
@@ -66,6 +67,7 @@ export function useCaixa() {
       totais,
       abrirCaixa,
       fecharCaixa,
+      limparDadosCaixa,
       getRelatoriosCaixa,
     },
   ]

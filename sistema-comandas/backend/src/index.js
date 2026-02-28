@@ -98,6 +98,17 @@ function somarTotais(vendas = []) {
   }
 }
 
+async function apagarColecao(colRef) {
+  const snap = await colRef.get()
+  if (snap.empty) return
+
+  const lote = db.batch()
+  for (const doc of snap.docs) {
+    lote.delete(doc.ref)
+  }
+  await lote.commit()
+}
+
 async function getCaixaStatus() {
   const snap = await caixaConfigRef.get()
   if (!snap.exists) {
@@ -570,6 +581,22 @@ app.post('/caixa/fechar', async (req, res) => {
 app.get('/caixa/relatorios', async (_, res) => {
   const snap = await fechamentosCol.orderBy('data', 'desc').get()
   res.json(snap.docs.map((doc) => docToEntity(doc)))
+})
+
+app.delete('/caixa/dados', async (_, res) => {
+  await apagarColecao(vendasCol)
+  await apagarColecao(fechamentosCol)
+  await caixaConfigRef.set(
+    {
+      aberto: false,
+      valorInicial: 0,
+      aberturaEm: null,
+      updated_at: new Date().toISOString(),
+    },
+    { merge: true }
+  )
+
+  res.json({ sucesso: true })
 })
 
 app.post('/vendas/:id/itens', async (req, res) => {
