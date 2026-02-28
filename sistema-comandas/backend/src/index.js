@@ -99,14 +99,18 @@ function somarTotais(vendas = []) {
 }
 
 async function apagarColecao(colRef) {
-  const snap = await colRef.get()
-  if (snap.empty) return
+  const tamanhoLote = 400
 
-  const lote = db.batch()
-  for (const doc of snap.docs) {
-    lote.delete(doc.ref)
+  while (true) {
+    const snap = await colRef.limit(tamanhoLote).get()
+    if (snap.empty) break
+
+    const lote = db.batch()
+    for (const doc of snap.docs) {
+      lote.delete(doc.ref)
+    }
+    await lote.commit()
   }
-  await lote.commit()
 }
 
 async function getCaixaStatus() {
@@ -584,19 +588,23 @@ app.get('/caixa/relatorios', async (_, res) => {
 })
 
 app.delete('/caixa/dados', async (_, res) => {
-  await apagarColecao(vendasCol)
-  await apagarColecao(fechamentosCol)
-  await caixaConfigRef.set(
-    {
-      aberto: false,
-      valorInicial: 0,
-      aberturaEm: null,
-      updated_at: new Date().toISOString(),
-    },
-    { merge: true }
-  )
+  try {
+    await apagarColecao(vendasCol)
+    await apagarColecao(fechamentosCol)
+    await caixaConfigRef.set(
+      {
+        aberto: false,
+        valorInicial: 0,
+        aberturaEm: null,
+        updated_at: new Date().toISOString(),
+      },
+      { merge: true }
+    )
 
-  res.json({ sucesso: true })
+    res.json({ sucesso: true })
+  } catch (error) {
+    res.status(500).json({ sucesso: false, error: error.message || 'Falha ao limpar caixa' })
+  }
 })
 
 app.post('/vendas/:id/itens', async (req, res) => {
