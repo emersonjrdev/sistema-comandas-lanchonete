@@ -5,10 +5,11 @@ export function getApiBaseUrl() {
 }
 
 export async function apiRequest(path, { method = 'GET', body, headers } = {}) {
+  const defaultHeaders = body !== undefined ? { 'Content-Type': 'application/json' } : {}
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers: {
-      'Content-Type': 'application/json',
+      ...defaultHeaders,
       ...(headers || {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,

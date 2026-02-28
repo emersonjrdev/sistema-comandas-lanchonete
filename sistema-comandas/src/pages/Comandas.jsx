@@ -42,14 +42,14 @@ export default function ComandasPage() {
   }, [isMobile])
 
   async function handleNovaComanda() {
-    const numeroComanda = window.prompt('Número da comanda (deixe vazio para gerar sem número):', '')
-    const cliente = window.prompt(
-      'Nome do cliente ou identificação (ex: Balcão, João, Viagem):',
-      'Balcão'
-    )
-    if (cliente === null) return
+    const numeroComanda = window.prompt('Número da comanda:', '')
+    if (numeroComanda === null) return
+    if (!numeroComanda.trim()) {
+      playSomErro()
+      return
+    }
 
-    const nova = await criarComanda(numeroComanda?.trim() || null, cliente?.trim() || 'Balcão')
+    const nova = await criarComanda(numeroComanda.trim(), null)
     if (!nova) {
       playSomErro()
       return

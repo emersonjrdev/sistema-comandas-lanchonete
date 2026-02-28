@@ -322,13 +322,13 @@ app.get('/comandas/aguardando-pagamento', async (_, res) => {
 })
 
 app.post('/comandas', async (req, res) => {
-  const { numeroComanda = null, cliente = 'Balcão' } = req.body || {}
-  const clienteNome = String(cliente)
-  const identificacao = numeroComanda ? `Comanda ${numeroComanda} - ${clienteNome}` : clienteNome
+  const { numeroComanda = null } = req.body || {}
+  const numero = numeroComanda != null ? String(numeroComanda).trim() : ''
+  const identificacao = numero ? `Comanda ${numero}` : 'Comanda'
 
   const nova = {
-    numero_comanda: numeroComanda ? String(numeroComanda) : null,
-    cliente: clienteNome,
+    numero_comanda: numero || null,
+    cliente: null,
     identificacao,
     status: 'aberta',
     total: 0,
