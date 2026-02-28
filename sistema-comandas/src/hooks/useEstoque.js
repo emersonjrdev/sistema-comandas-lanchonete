@@ -18,13 +18,20 @@ export function useEstoque() {
   const [produtos, setProdutos] = useState([])
   const [estoqueBaixo, setEstoqueBaixo] = useState([])
 
-  const refresh = useCallback(() => {
-    setProdutos(getProdutosComEstoque())
-    setEstoqueBaixo(getProdutosEstoqueBaixo(5))
+  const refresh = useCallback(async () => {
+    const [produtosData, baixo] = await Promise.all([
+      getProdutosComEstoque(),
+      getProdutosEstoqueBaixo(5),
+    ])
+    setProdutos(produtosData)
+    setEstoqueBaixo(baixo)
   }, [])
 
   useEffect(() => {
-    refresh()
+    refresh().catch(() => {
+      setProdutos([])
+      setEstoqueBaixo([])
+    })
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)

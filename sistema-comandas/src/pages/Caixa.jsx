@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { useCaixa } from '../hooks/useCaixa'
 import { useProdutos } from '../hooks/usePDV'
 import { adicionarItemAVenda, confirmarPagamento } from '../services/storage'
-import { temEstoque } from '../services/estoqueService'
 import { useToast } from '../contexts/ToastContext'
 import { playSomVenda, playSomErro } from '../utils/sons'
 import ModalPagamento from '../components/ModalPagamento'
@@ -37,10 +36,10 @@ export default function Caixa() {
     {
       comandasPendentes,
       caixaAberto,
+      caixaAtual,
       totais,
       abrirCaixa,
       fecharCaixa,
-      getCaixaAtual,
     },
   ] = useCaixa()
   const [produtos] = useProdutos()
@@ -65,17 +64,17 @@ export default function Caixa() {
     [vendasHoje]
   )
 
-  const produtosComEstoque = produtos.filter((p) => temEstoque(p.id, 1))
+  const produtosComEstoque = produtos.filter((p) => Number(p.estoque ?? 0) >= 1)
 
-  function handleAbrirCaixa(e) {
+  async function handleAbrirCaixa(e) {
     e?.preventDefault()
     const v = parseFloat(valorInicial.replace(',', '.')) || 0
-    const r = abrirCaixa(v)
+    const r = await abrirCaixa(v)
     if (r.sucesso) {
       playSomVenda()
       setMostrarAbertura(false)
       setValorInicial('')
-      refresh()
+      await refresh()
       toast.show('Caixa aberto com sucesso!')
     } else {
       toast.show(r.erro || 'Erro ao abrir caixa', 'error')
@@ -83,15 +82,15 @@ export default function Caixa() {
     }
   }
 
-  function handleFecharCaixa(e) {
+  async function handleFecharCaixa(e) {
     e?.preventDefault()
     const v = parseFloat(valorContado.replace(',', '.')) || 0
-    const r = fecharCaixa(v)
+    const r = await fecharCaixa(v)
     if (r.sucesso) {
       playSomVenda()
       setMostrarFechamento(false)
       setValorContado('')
-      refresh()
+      await refresh()
       toast.show(`Caixa fechado. Diferença: R$ ${r.fechamento.diferenca.toFixed(2)}`)
     } else {
       toast.show(r.erro || 'Erro ao fechar caixa', 'error')
@@ -99,9 +98,9 @@ export default function Caixa() {
     }
   }
 
-  function handleConfirmarPagamento(metodoPagamento, valorRecebido, troco) {
+  async function handleConfirmarPagamento(metodoPagamento, valorRecebido, troco) {
     if (!comandaPagamento) return
-    const venda = confirmarPagamento(
+    const venda = await confirmarPagamento(
       comandaPagamento.id,
       metodoPagamento,
       valorRecebido,
@@ -111,24 +110,25 @@ export default function Caixa() {
       playSomVenda()
       toast.show('Pagamento confirmado!')
       setComandaPagamento(null)
-      refresh()
+      await refresh()
     } else {
       playSomErro()
       toast.show('Erro ao confirmar pagamento. Verifique o estoque.', 'error')
     }
   }
 
-  function handleAdicionarItemVenda() {
+  async function handleAdicionarItemVenda() {
     if (!vendaAdicionarItem || !produtoSelecionado) return
-    if (!temEstoque(produtoSelecionado, quantidade)) {
+    const produto = produtos.find((p) => String(p.id) === String(produtoSelecionado))
+    if (Number(produto?.estoque ?? 0) < Number(quantidade || 0)) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
-    const venda = adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, quantidade)
+    const venda = await adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, quantidade)
     if (venda) {
       playSomVenda()
-      refresh()
+      await refresh()
       setVendaAdicionarItem(null)
       setProdutoSelecionado('')
       setQuantidade(1)
@@ -139,7 +139,7 @@ export default function Caixa() {
     }
   }
 
-  const caixa = getCaixaAtual()
+  const caixa = caixaAtual || { aberto: false, valorInicial: 0 }
   const totalEsperado = (caixa.valorInicial || 0) + totais.totalDinheiro
   const diferenca =
     mostrarFechamento && valorContado

@@ -17,14 +17,20 @@ export function useRelatorios() {
     totalPix: 0,
   })
 
-  const refresh = useCallback(() => {
-    setRelatorios(getRelatoriosCaixa())
-    const t = getTotaisHoje()
-    setTotaisHoje(t)
+  const refresh = useCallback(async () => {
+    const [relatoriosData, totais] = await Promise.all([
+      getRelatoriosCaixa(),
+      getTotaisHoje(),
+    ])
+    setRelatorios(relatoriosData)
+    setTotaisHoje(totais)
   }, [])
 
   useEffect(() => {
-    refresh()
+    refresh().catch(() => {
+      setRelatorios([])
+      setTotaisHoje({ totalDinheiro: 0, totalCartao: 0, totalPix: 0 })
+    })
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)

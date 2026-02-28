@@ -8,23 +8,23 @@ export default function Estoque() {
   const [editando, setEditando] = useState(null)
   const [valorEntrada, setValorEntrada] = useState('')
 
-  function handleSalvarEstoque(produtoId) {
+  async function handleSalvarEstoque(produtoId) {
     const v = parseInt(valorEntrada, 10)
     if (isNaN(v) || v < 0) return
-    const r = setEstoque(produtoId, v)
+    const r = await setEstoque(produtoId, v)
     if (r.sucesso) {
-      refresh()
+      await refresh()
       setEditando(null)
       setValorEntrada('')
     }
   }
 
-  function handleEntrada(produtoId) {
+  async function handleEntrada(produtoId) {
     const v = parseInt(valorEntrada, 10)
     if (isNaN(v) || v <= 0) return
-    const r = incrementarEstoque(produtoId, v)
+    const r = await incrementarEstoque(produtoId, v)
     if (r.sucesso) {
-      refresh()
+      await refresh()
       setEditando(null)
       setValorEntrada('')
     }

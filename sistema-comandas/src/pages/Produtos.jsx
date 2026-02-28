@@ -23,7 +23,7 @@ export default function Produtos() {
     setMostrarForm(false)
   }
 
-  function handleSalvar(e) {
+  async function handleSalvar(e) {
     e.preventDefault()
     const nome = formNome.trim()
     const preco = parseFloat(formPreco)
@@ -34,12 +34,12 @@ export default function Produtos() {
 
     const estoque = Math.max(0, parseInt(formEstoque, 10) || 0)
     if (editando) {
-      editarProduto(editando.id, nome, preco, estoque)
+      await editarProduto(editando.id, nome, preco, estoque)
     } else {
-      addProduto({ nome, preco, estoque })
+      await addProduto({ nome, preco, estoque })
     }
     playSomAcao()
-    refreshProdutos()
+    await refreshProdutos()
     limparForm()
   }
 
@@ -51,11 +51,11 @@ export default function Produtos() {
     setMostrarForm(true)
   }
 
-  function handleExcluir(produto) {
+  async function handleExcluir(produto) {
     if (window.confirm(`Excluir "${produto.nome}"?`)) {
-      excluirProduto(produto.id)
+      await excluirProduto(produto.id)
       playSomAcao()
-      refreshProdutos()
+      await refreshProdutos()
       if (editando?.id === produto.id) limparForm()
     }
   }

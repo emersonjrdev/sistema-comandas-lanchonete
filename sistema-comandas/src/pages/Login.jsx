@@ -11,10 +11,10 @@ export default function Login({ onLogin }) {
     nomeRef.current?.focus()
   }, [])
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     setErro('')
-    const resultado = onLogin(nome.trim(), senha)
+    const resultado = await onLogin(nome.trim(), senha)
     if (resultado.sucesso) {
       playSomVenda()
       return

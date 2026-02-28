@@ -6,7 +6,6 @@ import {
   alterarQtd,
   enviarParaCaixa,
 } from '../../services/storage'
-import { temEstoque } from '../../services/estoqueService'
 import { useToast } from '../../contexts/ToastContext'
 import { playSomAcao, playSomErro } from '../../utils/sons'
 
@@ -30,7 +29,12 @@ export default function ComandaDetalhe({
       0
     )
 
-  const produtosComEstoque = produtos.filter((p) => temEstoque(p.id, 1))
+  function estoqueDisponivel(produtoId) {
+    const produto = produtos.find((p) => String(p.id) === String(produtoId))
+    return Number(produto?.estoque ?? 0)
+  }
+
+  const produtosComEstoque = produtos.filter((p) => estoqueDisponivel(p.id) >= 1)
 
   useEffect(() => {
     if (isMobile) {
@@ -38,16 +42,16 @@ export default function ComandaDetalhe({
     }
   }, [isMobile])
 
-  function handleAdicionarProduto() {
+  async function handleAdicionarProduto() {
     if (!produtoSelecionado) return
 
-    if (!temEstoque(produtoSelecionado, quantidade)) {
+    if (estoqueDisponivel(produtoSelecionado) < Number(quantidade || 0)) {
       playSomErro()
       toast.show('Estoque insuficiente para este produto', 'error')
       return
     }
 
-    const atualizada = adicionarItem(comanda.id, produtoSelecionado, quantidade)
+    const atualizada = await adicionarItem(comanda.id, produtoSelecionado, quantidade)
     if (atualizada) {
       playSomAcao()
       onComandaAtualizada(atualizada)
@@ -60,22 +64,22 @@ export default function ComandaDetalhe({
     }
   }
 
-  function handleQuantidadeChange(itemId, novaQuantidade) {
-    const atualizada = alterarQtd(comanda.id, itemId, novaQuantidade)
+  async function handleQuantidadeChange(itemId, novaQuantidade) {
+    const atualizada = await alterarQtd(comanda.id, itemId, novaQuantidade)
     if (atualizada) onComandaAtualizada(atualizada)
   }
 
-  function handleRemover(itemId) {
-    const atualizada = removerItem(comanda.id, itemId)
+  async function handleRemover(itemId) {
+    const atualizada = await removerItem(comanda.id, itemId)
     if (atualizada) onComandaAtualizada(atualizada)
   }
 
-  function handleEnviarParaCaixa() {
+  async function handleEnviarParaCaixa() {
     if (total <= 0) {
       toast.show('Adicione itens à comanda antes de enviar', 'warning')
       return
     }
-    const enviada = enviarParaCaixa(comanda.id)
+    const enviada = await enviarParaCaixa(comanda.id)
     if (enviada) {
       playSomAcao()
       toast.show('Comanda enviada para o caixa!')

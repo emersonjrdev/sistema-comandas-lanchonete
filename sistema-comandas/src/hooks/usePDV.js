@@ -14,12 +14,13 @@ export { useCaixa } from './useCaixa'
 export function useProdutos() {
   const [produtos, setProdutos] = useState([])
 
-  const refresh = useCallback(() => {
-    setProdutos(getProdutos())
+  const refresh = useCallback(async () => {
+    const data = await getProdutos()
+    setProdutos(data)
   }, [])
 
   useEffect(() => {
-    refresh()
+    refresh().catch(() => setProdutos([]))
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)
@@ -29,12 +30,13 @@ export function useProdutos() {
 export function useComandas() {
   const [comandas, setComandas] = useState([])
 
-  const refresh = useCallback(() => {
-    setComandas(getComandas())
+  const refresh = useCallback(async () => {
+    const data = await getComandas()
+    setComandas(data)
   }, [])
 
   useEffect(() => {
-    refresh()
+    refresh().catch(() => setComandas([]))
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)
@@ -50,12 +52,21 @@ export function useDashboard() {
     totalVendas: 0,
   })
 
-  const refresh = useCallback(() => {
-    setResumo(getResumoDashboard())
+  const refresh = useCallback(async () => {
+    const data = await getResumoDashboard()
+    setResumo(data)
   }, [])
 
   useEffect(() => {
-    refresh()
+    refresh().catch(() => {
+      setResumo({
+        totalHoje: 0,
+        comandasAbertas: 0,
+        vendasFinalizadasHoje: 0,
+        totalHistorico: 0,
+        totalVendas: 0,
+      })
+    })
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)

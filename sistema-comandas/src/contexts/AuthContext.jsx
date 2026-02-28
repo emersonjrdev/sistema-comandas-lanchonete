@@ -7,11 +7,12 @@ export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null)
   const [carregando, setCarregando] = useState(true)
 
-  const login = useCallback((nome, senha) => {
-    const u = loginService(nome, senha)
+  const login = useCallback(async (nome, senha) => {
+    const u = await loginService(nome, senha)
     if (u) {
       setUsuario(u)
       localStorage.setItem('sistema-comandas:usuario-id', u.id)
+      localStorage.setItem('sistema-comandas:usuario', JSON.stringify(u))
       return { sucesso: true }
     }
     return { sucesso: false, erro: 'Usuário ou senha inválidos' }
@@ -20,15 +21,34 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     setUsuario(null)
     localStorage.removeItem('sistema-comandas:usuario-id')
+    localStorage.removeItem('sistema-comandas:usuario')
   }, [])
 
   useEffect(() => {
-    const id = localStorage.getItem('sistema-comandas:usuario-id')
-    if (id) {
-      const u = getUsuarioPorId(id)
-      setUsuario(u || null)
+    async function carregarUsuarioSessao() {
+      const salvo = localStorage.getItem('sistema-comandas:usuario')
+      if (salvo) {
+        try {
+          const parsed = JSON.parse(salvo)
+          if (parsed?.id) {
+            setUsuario(parsed)
+            setCarregando(false)
+            return
+          }
+        } catch {
+          // Ignora dado inválido e segue para fallback.
+        }
+      }
+
+      const id = localStorage.getItem('sistema-comandas:usuario-id')
+      if (id) {
+        const u = await getUsuarioPorId(id)
+        setUsuario(u || null)
+      }
+      setCarregando(false)
     }
-    setCarregando(false)
+
+    carregarUsuarioSessao()
   }, [])
 
   const value = {

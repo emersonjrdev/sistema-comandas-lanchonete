@@ -1,58 +1,60 @@
-import { getDB, saveDB } from './storage'
+import { apiRequest } from './api'
+import { getProdutos } from './storage'
 
-export function getProdutosComEstoque() {
-  const db = getDB()
-  return (db.produtos || []).map((p) => ({
+export async function getProdutosComEstoque() {
+  const produtos = await getProdutos()
+  return (produtos || []).map((p) => ({
     ...p,
     estoque: p.estoque ?? 0,
   }))
 }
 
-export function getProdutosEstoqueBaixo(limite = 5) {
-  return getProdutosComEstoque().filter((p) => (p.estoque ?? 0) < limite)
+export async function getProdutosEstoqueBaixo(limite = 5) {
+  const produtos = await getProdutosComEstoque()
+  return produtos.filter((p) => (p.estoque ?? 0) < limite)
 }
 
-export function decrementarEstoque(produtoId, quantidade) {
-  const db = getDB()
-  const idx = (db.produtos || []).findIndex((p) => String(p.id) === String(produtoId))
-  if (idx === -1) return { sucesso: false, erro: 'Produto não encontrado' }
-
-  const p = db.produtos[idx]
-  const estoqueAtual = p.estoque ?? 0
-  if (estoqueAtual < quantidade) {
-    return { sucesso: false, erro: `Estoque insuficiente. Disponível: ${estoqueAtual}` }
+export async function decrementarEstoque(produtoId, quantidade) {
+  try {
+    await apiRequest(`/produtos/${produtoId}/estoque`, {
+      method: 'PATCH',
+      body: { operacao: 'decrementar', quantidade },
+    })
+    window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+    return { sucesso: true }
+  } catch (error) {
+    return { sucesso: false, erro: error.message }
   }
-
-  db.produtos[idx] = { ...p, estoque: estoqueAtual - quantidade }
-  saveDB(db)
-  return { sucesso: true }
 }
 
-export function incrementarEstoque(produtoId, quantidade) {
-  const db = getDB()
-  const idx = (db.produtos || []).findIndex((p) => String(p.id) === String(produtoId))
-  if (idx === -1) return { sucesso: false, erro: 'Produto não encontrado' }
-
-  const p = db.produtos[idx]
-  const estoqueAtual = p.estoque ?? 0
-  db.produtos[idx] = { ...p, estoque: estoqueAtual + quantidade }
-  saveDB(db)
-  return { sucesso: true }
+export async function incrementarEstoque(produtoId, quantidade) {
+  try {
+    await apiRequest(`/produtos/${produtoId}/estoque`, {
+      method: 'PATCH',
+      body: { operacao: 'incrementar', quantidade },
+    })
+    window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+    return { sucesso: true }
+  } catch (error) {
+    return { sucesso: false, erro: error.message }
+  }
 }
 
-export function setEstoque(produtoId, quantidade) {
-  const db = getDB()
-  const idx = (db.produtos || []).findIndex((p) => String(p.id) === String(produtoId))
-  if (idx === -1) return { sucesso: false, erro: 'Produto não encontrado' }
-
-  const valor = Math.max(0, parseInt(quantidade, 10) || 0)
-  db.produtos[idx] = { ...db.produtos[idx], estoque: valor }
-  saveDB(db)
-  return { sucesso: true }
+export async function setEstoque(produtoId, quantidade) {
+  try {
+    await apiRequest(`/produtos/${produtoId}/estoque`, {
+      method: 'PATCH',
+      body: { operacao: 'set', quantidade },
+    })
+    window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+    return { sucesso: true }
+  } catch (error) {
+    return { sucesso: false, erro: error.message }
+  }
 }
 
-export function temEstoque(produtoId, quantidade = 1) {
-  const produtos = getProdutosComEstoque()
+export async function temEstoque(produtoId, quantidade = 1) {
+  const produtos = await getProdutosComEstoque()
   const p = produtos.find((x) => String(x.id) === String(produtoId))
   return (p?.estoque ?? 0) >= quantidade
 }

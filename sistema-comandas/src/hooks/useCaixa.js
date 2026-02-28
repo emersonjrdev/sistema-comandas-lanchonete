@@ -20,7 +20,8 @@ function useRefreshOnStorageUpdate(refresh) {
 export function useCaixa() {
   const [vendas, setVendas] = useState([])
   const [comandasPendentes, setComandasPendentes] = useState([])
-  const [caixaAberto, setCaixaAberto] = useState(true)
+  const [caixaAberto, setCaixaAberto] = useState(false)
+  const [caixaAtual, setCaixaAtual] = useState({ aberto: false, valorInicial: 0, aberturaEm: null })
   const [totais, setTotais] = useState({
     totalDinheiro: 0,
     totalCartao: 0,
@@ -28,15 +29,29 @@ export function useCaixa() {
     totalHoje: 0,
   })
 
-  const refresh = useCallback(() => {
-    setVendas(getCaixaHistorico())
-    setComandasPendentes(getComandasAguardandoPagamento())
-    setCaixaAberto(isCaixaAberto())
-    setTotais(getTotaisHoje())
+  const refresh = useCallback(async () => {
+    const [historico, pendentes, aberto, totaisHoje, caixa] = await Promise.all([
+      getCaixaHistorico(),
+      getComandasAguardandoPagamento(),
+      isCaixaAberto(),
+      getTotaisHoje(),
+      getCaixaAtual(),
+    ])
+    setVendas(historico)
+    setComandasPendentes(pendentes)
+    setCaixaAberto(aberto)
+    setTotais(totaisHoje)
+    setCaixaAtual(caixa)
   }, [])
 
   useEffect(() => {
-    refresh()
+    refresh().catch(() => {
+      setVendas([])
+      setComandasPendentes([])
+      setCaixaAberto(false)
+      setTotais({ totalDinheiro: 0, totalCartao: 0, totalPix: 0, totalHoje: 0 })
+      setCaixaAtual({ aberto: false, valorInicial: 0, aberturaEm: null })
+    })
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)
@@ -47,10 +62,10 @@ export function useCaixa() {
     {
       comandasPendentes,
       caixaAberto,
+      caixaAtual,
       totais,
       abrirCaixa,
       fecharCaixa,
-      getCaixaAtual,
       getRelatoriosCaixa,
     },
   ]

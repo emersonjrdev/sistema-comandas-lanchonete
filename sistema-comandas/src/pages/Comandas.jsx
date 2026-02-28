@@ -24,7 +24,7 @@ export default function ComandasPage() {
     if (isMobile) bipadorRef.current?.focus()
   }, [isMobile])
 
-  function handleNovaComanda() {
+  async function handleNovaComanda() {
     const numeroComanda = window.prompt('Número da comanda (deixe vazio para gerar sem número):', '')
     const cliente = window.prompt(
       'Nome do cliente ou identificação (ex: Balcão, João, Viagem):',
@@ -32,13 +32,13 @@ export default function ComandasPage() {
     )
     if (cliente === null) return
 
-    const nova = criarComanda(numeroComanda?.trim() || null, cliente?.trim() || 'Balcão')
+    const nova = await criarComanda(numeroComanda?.trim() || null, cliente?.trim() || 'Balcão')
     if (!nova) {
       playSomErro()
       return
     }
     playSomAcao()
-    refreshComandas()
+    await refreshComandas()
     setComandaSelecionada(nova)
   }
 
