@@ -1,10 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useCaixa } from '../hooks/useCaixa'
 import { useProdutos } from '../hooks/usePDV'
-import { adicionarItemAVenda, confirmarPagamento } from '../services/storage'
+import {
+  adicionarItem,
+  adicionarItemAVenda,
+  alterarQtd,
+  confirmarPagamento,
+  removerItem,
+} from '../services/storage'
 import { useToast } from '../contexts/ToastContext'
 import { playSomVenda, playSomErro } from '../utils/sons'
 import ModalPagamento from '../components/ModalPagamento'
+import ItemRow from '../components/comandas/ItemRow'
 
 function formatarData(dataStr) {
   if (!dataStr) return '-'
@@ -48,9 +55,12 @@ export default function Caixa() {
   const [mostrarFechamento, setMostrarFechamento] = useState(false)
   const [valorContado, setValorContado] = useState('')
   const [comandaPagamento, setComandaPagamento] = useState(null)
+  const [comandaEdicaoId, setComandaEdicaoId] = useState(null)
   const [vendaAdicionarItem, setVendaAdicionarItem] = useState(null)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState(1)
+  const [produtoComandaSelecionado, setProdutoComandaSelecionado] = useState('')
+  const [quantidadeComanda, setQuantidadeComanda] = useState(1)
   const toast = useToast()
 
   const { totalHoje, vendasHoje } = useMemo(() => {
@@ -65,6 +75,10 @@ export default function Caixa() {
   )
 
   const produtosComEstoque = produtos.filter((p) => Number(p.estoque ?? 0) >= 1)
+  const comandaEmEdicao = useMemo(
+    () => comandasPendentes.find((comanda) => comanda.id === comandaEdicaoId) || null,
+    [comandasPendentes, comandaEdicaoId]
+  )
 
   async function handleAbrirCaixa(e) {
     e?.preventDefault()
@@ -136,6 +150,62 @@ export default function Caixa() {
     } else {
       playSomErro()
       toast.show('Erro ao adicionar item', 'error')
+    }
+  }
+
+  function limparEdicaoComanda() {
+    setComandaEdicaoId(null)
+    setProdutoComandaSelecionado('')
+    setQuantidadeComanda(1)
+  }
+
+  async function handleAdicionarItemComanda() {
+    if (!comandaEdicaoId || !produtoComandaSelecionado) return
+    const produto = produtos.find((p) => String(p.id) === String(produtoComandaSelecionado))
+    if (Number(produto?.estoque ?? 0) < Number(quantidadeComanda || 0)) {
+      playSomErro()
+      toast.show('Estoque insuficiente', 'error')
+      return
+    }
+
+    const comandaAtualizada = await adicionarItem(
+      comandaEdicaoId,
+      produtoComandaSelecionado,
+      quantidadeComanda
+    )
+    if (comandaAtualizada) {
+      playSomVenda()
+      await refresh()
+      setProdutoComandaSelecionado('')
+      setQuantidadeComanda(1)
+      toast.show('Item adicionado ao pedido!')
+    } else {
+      playSomErro()
+      toast.show('Erro ao adicionar item no pedido', 'error')
+    }
+  }
+
+  async function handleAlterarQuantidadeComanda(itemId, novaQuantidade) {
+    if (!comandaEdicaoId) return
+    const comandaAtualizada = await alterarQtd(comandaEdicaoId, itemId, novaQuantidade)
+    if (comandaAtualizada) {
+      await refresh()
+    } else {
+      playSomErro()
+      toast.show('Erro ao atualizar quantidade do item', 'error')
+    }
+  }
+
+  async function handleRemoverItemComanda(itemId) {
+    if (!comandaEdicaoId) return
+    const comandaAtualizada = await removerItem(comandaEdicaoId, itemId)
+    if (comandaAtualizada) {
+      playSomVenda()
+      await refresh()
+      toast.show('Item removido do pedido!')
+    } else {
+      playSomErro()
+      toast.show('Erro ao remover item do pedido', 'error')
     }
   }
 
@@ -353,12 +423,86 @@ export default function Caixa() {
                   </p>
                   <button
                     type="button"
+                    onClick={() => {
+                      if (comandaEdicaoId === comanda.id) {
+                        limparEdicaoComanda()
+                        return
+                      }
+                      setComandaEdicaoId(comanda.id)
+                      setProdutoComandaSelecionado('')
+                      setQuantidadeComanda(1)
+                    }}
+                    className="px-4 py-3 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700"
+                  >
+                    {comandaEdicaoId === comanda.id ? 'Fechar edição' : 'Editar pedido'}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setComandaPagamento(comanda)}
                     className="px-6 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700"
                   >
                     Cobrar
                   </button>
                 </div>
+
+                {comandaEdicaoId === comanda.id && (
+                  <div className="w-full sm:basis-full mt-2 p-4 rounded-lg border border-amber-200 bg-amber-50">
+                    <p className="text-sm font-semibold text-amber-900 mb-3">
+                      Editar pedido antes da cobrança
+                    </p>
+
+                    {comandaEmEdicao?.itens?.length ? (
+                      <div className="space-y-2 mb-4">
+                        {comandaEmEdicao.itens.map((item) => (
+                          <ItemRow
+                            key={item.id}
+                            item={item}
+                            onQuantidadeChange={handleAlterarQuantidadeComanda}
+                            onRemover={handleRemoverItemComanda}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-stone-600 mb-4">
+                        Pedido sem itens no momento.
+                      </p>
+                    )}
+
+                    <div className="flex gap-2 flex-wrap items-end">
+                      <select
+                        value={produtoComandaSelecionado}
+                        onChange={(e) => setProdutoComandaSelecionado(e.target.value)}
+                        className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                      >
+                        <option value="">Produto...</option>
+                        {produtosComEstoque.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nome} - R$ {p.preco?.toFixed(2)}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min={1}
+                        value={quantidadeComanda}
+                        onChange={(e) =>
+                          setQuantidadeComanda(
+                            Math.max(1, parseInt(e.target.value, 10) || 1)
+                          )
+                        }
+                        className="w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAdicionarItemComanda}
+                        disabled={!produtoComandaSelecionado}
+                        className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold disabled:opacity-50"
+                      >
+                        + Adicionar item
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })

@@ -333,7 +333,9 @@ app.post('/comandas/:id/itens', async (req, res) => {
   const comandaDoc = await comandaRef.get()
   if (!comandaDoc.exists) return res.status(404).json({ error: 'Comanda não encontrada ou fechada' })
   const comanda = docToEntity(comandaDoc)
-  if (comanda.status !== 'aberta') return res.status(404).json({ error: 'Comanda não encontrada ou fechada' })
+  if (!['aberta', 'aguardando_pagamento'].includes(comanda.status)) {
+    return res.status(404).json({ error: 'Comanda não encontrada ou fechada' })
+  }
 
   const produtoDoc = await produtosCol.doc(String(produtoId)).get()
   if (!produtoDoc.exists) return res.status(404).json({ error: 'Produto não encontrado' })
