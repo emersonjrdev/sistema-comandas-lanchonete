@@ -485,7 +485,13 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
   }
 
   const vendaRef = await vendasCol.add(venda)
-  await comandaRef.delete()
+  await comandaRef.update({
+    status: 'aberta',
+    itens: [],
+    total: 0,
+    enviadaEm: null,
+    updated_at: new Date().toISOString(),
+  })
 
   const vendaDoc = await vendaRef.get()
   res.json(docToEntity(vendaDoc))
