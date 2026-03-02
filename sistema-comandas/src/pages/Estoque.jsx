@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useEstoque } from '../hooks/useEstoque'
 import { useProdutos } from '../hooks/usePDV'
 
@@ -10,6 +10,12 @@ export default function Estoque() {
 
   function sanitizarInteiro(valor) {
     return String(valor || '').replace(/\D/g, '')
+  }
+
+  function ordenarPorNome(a, b) {
+    return String(a?.nome || '').localeCompare(String(b?.nome || ''), 'pt-BR', {
+      sensitivity: 'base',
+    })
   }
 
   async function handleSalvarEstoque(produtoId) {
@@ -34,19 +40,28 @@ export default function Estoque() {
     }
   }
 
-  const produtosParaExibir = produtos.length > 0 ? produtos : produtosAll.map((p) => ({ ...p, estoque: p.estoque ?? 0 }))
+  const produtosParaExibir = useMemo(() => {
+    const base =
+      produtos.length > 0 ? [...produtos] : produtosAll.map((p) => ({ ...p, estoque: p.estoque ?? 0 }))
+    return base.sort(ordenarPorNome)
+  }, [produtos, produtosAll])
+
+  const estoqueBaixoOrdenado = useMemo(
+    () => [...estoqueBaixo].sort(ordenarPorNome),
+    [estoqueBaixo]
+  )
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-amber-900 mb-6">Estoque</h2>
 
-      {estoqueBaixo.length > 0 && (
+      {estoqueBaixoOrdenado.length > 0 && (
         <div className="mb-6 p-4 rounded-xl bg-amber-100 border-2 border-amber-300">
           <p className="font-semibold text-amber-900">
-            ⚠️ {estoqueBaixo.length} produto(s) com estoque baixo (menos de 5 unidades)
+            ⚠️ {estoqueBaixoOrdenado.length} produto(s) com estoque baixo (menos de 5 unidades)
           </p>
           <p className="text-sm text-amber-900 mt-1">
-            {estoqueBaixo.map((p) => `${p.nome} (${p.estoque ?? 0})`).join(', ')}
+            {estoqueBaixoOrdenado.map((p) => `${p.nome} (${p.estoque ?? 0})`).join(', ')}
           </p>
         </div>
       )}

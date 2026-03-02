@@ -83,7 +83,17 @@ export default function Caixa() {
     [vendasHoje]
   )
 
-  const produtosComEstoque = produtos.filter((p) => Number(p.estoque ?? 0) >= 1)
+  const produtosComEstoque = useMemo(
+    () =>
+      produtos
+        .filter((p) => Number(p.estoque ?? 0) >= 1)
+        .sort((a, b) =>
+          String(a?.nome || '').localeCompare(String(b?.nome || ''), 'pt-BR', {
+            sensitivity: 'base',
+          })
+        ),
+    [produtos]
+  )
   const comandaEmEdicao = useMemo(
     () => comandasPendentes.find((comanda) => comanda.id === comandaEdicaoId) || null,
     [comandasPendentes, comandaEdicaoId]
