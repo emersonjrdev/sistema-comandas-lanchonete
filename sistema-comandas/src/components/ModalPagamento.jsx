@@ -105,7 +105,7 @@ export default function ModalPagamento({ total, onConfirmar, onCancelar }) {
           <kbd className="px-1.5 py-0.5 bg-amber-100 rounded">P</kbd> PIX
         </p>
 
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
           {Object.entries(METODOS).map(([key, m]) => (
             <button
               key={key}
@@ -150,7 +150,7 @@ export default function ModalPagamento({ total, onConfirmar, onCancelar }) {
           </p>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex flex-col-reverse sm:flex-row gap-2">
           <button
             type="button"
             onClick={handleConfirmar}

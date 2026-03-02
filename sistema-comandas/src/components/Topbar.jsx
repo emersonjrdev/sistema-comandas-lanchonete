@@ -21,19 +21,19 @@ export default function Topbar() {
   }, [])
 
   return (
-    <header className="h-16 bg-amber-800 text-white px-6 flex items-center justify-between shrink-0 shadow-md">
-      <h1 className="text-xl font-bold tracking-tight">
+    <header className="min-h-16 bg-amber-800 text-white px-4 md:px-6 py-2 flex items-center justify-between gap-3 shrink-0 shadow-md">
+      <h1 className="text-base md:text-xl font-bold tracking-tight">
         Padaria Grande Familia
       </h1>
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-amber-200">{usuario?.nome}</span>
-        <div className="text-lg font-mono tabular-nums bg-amber-900/50 px-4 py-2 rounded-lg">
+      <div className="flex items-center gap-2 md:gap-4 flex-wrap justify-end">
+        <span className="text-xs md:text-sm text-amber-200 max-w-40 truncate">{usuario?.nome}</span>
+        <div className="text-sm md:text-lg font-mono tabular-nums bg-amber-900/50 px-3 md:px-4 py-2 rounded-lg">
           {time}
         </div>
         <button
           type="button"
           onClick={logout}
-          className="px-3 py-2 rounded-lg bg-amber-900/70 hover:bg-amber-900 text-sm font-semibold"
+          className="px-3 py-2 rounded-lg bg-amber-900/70 hover:bg-amber-900 text-xs md:text-sm font-semibold"
         >
           Sair
         </button>

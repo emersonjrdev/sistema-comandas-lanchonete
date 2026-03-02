@@ -106,18 +106,18 @@ export default function Estoque() {
                       placeholder="Quantidade"
                       className="w-full px-3 py-2 rounded-lg border-2 border-amber-200"
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <button
                         type="button"
                         onClick={() => handleSalvarEstoque(produto.id)}
-                        className="flex-1 py-2 rounded-lg bg-amber-600 text-white font-semibold"
+                        className="flex-1 py-3 rounded-lg bg-amber-600 text-white font-semibold"
                       >
                         Definir
                       </button>
                       <button
                         type="button"
                         onClick={() => handleEntrada(produto.id)}
-                        className="flex-1 py-2 rounded-lg bg-green-600 text-white font-semibold"
+                        className="flex-1 py-3 rounded-lg bg-green-600 text-white font-semibold"
                       >
                         + Entrada
                       </button>
@@ -127,7 +127,7 @@ export default function Estoque() {
                           setEditando(null)
                           setValorEntrada('')
                         }}
-                        className="py-2 px-3 rounded-lg bg-stone-200"
+                        className="py-3 px-3 rounded-lg bg-stone-200"
                       >
                         Cancelar
                       </button>

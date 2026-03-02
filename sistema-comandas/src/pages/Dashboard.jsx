@@ -7,62 +7,62 @@ export default function Dashboard() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-amber-900 mb-6">Dashboard</h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Total vendido hoje</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             R$ {resumo.totalHoje.toFixed(2)}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Dinheiro hoje</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             R$ {(resumo.totalDinheiro ?? 0).toFixed(2)}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Cartão hoje</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             R$ {(resumo.totalCartao ?? 0).toFixed(2)}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">PIX hoje</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             R$ {(resumo.totalPix ?? 0).toFixed(2)}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Sangrias</p>
           <p className="text-2xl font-bold text-red-700 tabular-nums">
             R$ {(resumo.totalSangrias ?? 0).toFixed(2)}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Dinheiro líquido</p>
           <p className="text-2xl font-bold text-green-700 tabular-nums">
             R$ {(resumo.dinheiroLiquido ?? 0).toFixed(2)}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Comandas abertas</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             {resumo.comandasAbertas}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Aguardando pagamento</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             {resumo.comandasAguardandoPagamento ?? 0}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Vendas pagas hoje</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             {resumo.vendasFinalizadasHoje}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Status caixa</p>
           <p
             className={`text-lg font-bold ${
@@ -72,7 +72,7 @@ export default function Dashboard() {
             {resumo.caixaAberto ? 'Aberto' : 'Fechado'}
           </p>
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Estoque baixo (&lt;5)</p>
           <p
             className={`text-2xl font-bold tabular-nums ${
@@ -87,7 +87,7 @@ export default function Dashboard() {
             </p>
           )}
         </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm sm:col-span-2">
+        <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm sm:col-span-2">
           <p className="text-sm font-medium text-stone-500 mb-1">Total histórico</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             R$ {resumo.totalHistorico.toFixed(2)}

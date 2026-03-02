@@ -3,7 +3,7 @@ import ComandaCard from '../components/comandas/ComandaCard'
 import ComandaDetalhe from '../components/comandas/ComandaDetalhe'
 import { criarComanda, excluirComandasAbertas } from '../services/storage'
 import { useComandas, useProdutos } from '../hooks/usePDV'
-import { useIsMobile } from '../hooks/useResponsive'
+import { useResponsive } from '../hooks/useResponsive'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { playSomAcao, playSomErro } from '../utils/sons'
@@ -18,7 +18,7 @@ export default function ComandasPage() {
   const [numeroNovaComanda, setNumeroNovaComanda] = useState('')
   const [busca, setBusca] = useState('')
   const bipadorRef = useRef(null)
-  const isMobile = useIsMobile()
+  const { isMobile, isTablet } = useResponsive()
 
   function normalizarTexto(valor) {
     return String(valor || '')
@@ -142,7 +142,7 @@ export default function ComandasPage() {
   }
 
 
-  const paddingClass = isMobile ? 'p-4 pb-24' : 'p-6'
+  const paddingClass = isMobile ? 'pb-24' : ''
 
   if (comandaSelecionada) {
     const comandaAtual = comandas.find((c) => c.id === comandaSelecionada.id) || comandaSelecionada
@@ -156,6 +156,7 @@ export default function ComandasPage() {
           onEnviada={handleEnviada}
           onVoltar={handleVoltar}
           isMobile={isMobile}
+          isTablet={isTablet}
         />
       </div>
     )
@@ -184,7 +185,7 @@ export default function ComandasPage() {
           type="button"
           onClick={abrirModalNovaComanda}
           className={`w-full rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-colors touch-manipulation shadow-lg ${
-            isMobile
+            isMobile || isTablet
               ? 'py-6 text-2xl min-h-[72px]'
               : 'px-6 py-4 text-lg min-h-[56px]'
           }`}
@@ -196,8 +197,8 @@ export default function ComandasPage() {
           <button
             type="button"
             onClick={handleExcluirComandasAbertas}
-            className={`w-full rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors touch-manipulation shadow-lg ${
-              isMobile
+              className={`w-full rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors touch-manipulation shadow-lg ${
+              isMobile || isTablet
                 ? 'py-5 text-xl min-h-[64px]'
                 : 'px-6 py-3 text-base min-h-[48px]'
             }`}
@@ -227,7 +228,11 @@ export default function ComandasPage() {
       ) : (
         <div
           className={`grid gap-4 ${
-            isMobile ? 'grid-cols-1 gap-5' : 'sm:grid-cols-2 lg:grid-cols-3'
+            isMobile
+              ? 'grid-cols-1 gap-5'
+              : isTablet
+                ? 'sm:grid-cols-2'
+                : 'sm:grid-cols-2 lg:grid-cols-3'
           }`}
         >
           {comandasFiltradas.map((comanda) => (

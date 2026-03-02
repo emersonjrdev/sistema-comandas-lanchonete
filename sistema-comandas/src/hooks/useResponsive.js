@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 
 const MOBILE_BREAKPOINT = 768
+const TABLET_BREAKPOINT = 1024
 
 export function useResponsive() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < MOBILE_BREAKPOINT)
+  const [width, setWidth] = useState(() => window.innerWidth)
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      setWidth(window.innerWidth)
     }
 
     window.addEventListener('resize', handleResize)
@@ -16,7 +17,11 @@ export function useResponsive() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  return { isMobile }
+  const isMobile = width < MOBILE_BREAKPOINT
+  const isTablet = width >= MOBILE_BREAKPOINT && width < TABLET_BREAKPOINT
+  const isDesktop = width >= TABLET_BREAKPOINT
+
+  return { width, isMobile, isTablet, isDesktop }
 }
 
 export function useIsMobile() {

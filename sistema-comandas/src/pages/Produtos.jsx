@@ -106,7 +106,7 @@ export default function Produtos() {
             limparForm()
             setMostrarForm(true)
           }}
-          className="px-6 py-4 rounded-xl bg-amber-600 text-white font-bold text-lg hover:bg-amber-700 transition-colors touch-manipulation min-h-[56px] shadow-lg"
+          className="w-full sm:w-auto px-6 py-4 rounded-xl bg-amber-600 text-white font-bold text-lg hover:bg-amber-700 transition-colors touch-manipulation min-h-[56px] shadow-lg"
         >
           + Cadastrar Produto
         </button>
@@ -169,17 +169,17 @@ export default function Produtos() {
               />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 touch-manipulation"
+              className="px-4 py-3 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 touch-manipulation"
             >
               Salvar
             </button>
             <button
               type="button"
               onClick={limparForm}
-              className="px-4 py-2 rounded-lg bg-stone-200 text-stone-700 font-semibold hover:bg-stone-300 touch-manipulation"
+              className="px-4 py-3 rounded-lg bg-stone-200 text-stone-700 font-semibold hover:bg-stone-300 touch-manipulation"
             >
               Cancelar
             </button>

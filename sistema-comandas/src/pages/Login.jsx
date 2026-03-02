@@ -25,11 +25,11 @@ export default function Login({ onLogin }) {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50/80 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl border-2 border-amber-200 shadow-xl p-8">
+    <div className="min-h-screen bg-amber-50/80 flex items-center justify-center p-4 md:p-6">
+      <div className="w-full max-w-md md:max-w-lg">
+        <div className="bg-white rounded-2xl border-2 border-amber-200 shadow-xl p-6 md:p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-amber-900">
+            <h1 className="text-2xl md:text-3xl font-bold text-amber-900">
               Padaria Grande Familia
             </h1>
           </div>
@@ -56,7 +56,7 @@ export default function Login({ onLogin }) {
                 type="text"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
+                className="w-full px-4 py-3 md:py-4 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
                 placeholder="Nome do usuário"
                 required
                 autoComplete="username"
@@ -74,7 +74,7 @@ export default function Login({ onLogin }) {
                 type="password"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
+                className="w-full px-4 py-3 md:py-4 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
                 placeholder="Senha"
                 required
                 autoComplete="current-password"

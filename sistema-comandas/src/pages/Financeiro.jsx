@@ -42,7 +42,7 @@ export default function Financeiro() {
     <div>
       <h2 className="text-2xl font-bold text-amber-900 mb-6">Financeiro</h2>
 
-      <div className="mb-8 p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+      <div className="mb-8 p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
         <p className="text-sm font-medium text-stone-500 mb-1">
           Faturamento total (histórico)
         </p>
@@ -63,9 +63,9 @@ export default function Financeiro() {
           {grupos.map((grupo) => (
             <div
               key={grupo.data}
-              className="bg-white rounded-xl border-2 border-amber-200 p-6 shadow-sm"
+              className="bg-white rounded-xl border-2 border-amber-200 p-4 md:p-6 shadow-sm"
             >
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
                 <h4 className="text-lg font-bold text-amber-900">
                   {grupo.data}
                 </h4>
@@ -75,10 +75,7 @@ export default function Financeiro() {
               </div>
               <ul className="space-y-2">
                 {grupo.vendas.map((venda) => (
-                  <li
-                    key={venda.id}
-                    className="flex justify-between items-center py-2 border-b border-amber-50 last:border-0"
-                  >
+                  <li key={venda.id} className="py-2 border-b border-amber-50 last:border-0">
                     <span className="text-stone-700">
                       {venda.identificacao}
                       {venda.metodoPagamento && (
@@ -87,7 +84,7 @@ export default function Financeiro() {
                         </span>
                       )}
                     </span>
-                    <span className="font-semibold text-amber-800 tabular-nums">
+                    <span className="block sm:inline font-semibold text-amber-800 tabular-nums">
                       R$ {(venda.total || 0).toFixed(2)}
                     </span>
                   </li>

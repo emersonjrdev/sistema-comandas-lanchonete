@@ -38,9 +38,9 @@ export default function RelatorioCaixa() {
           {ordenados.map((r) => (
             <div
               key={r.id}
-              className="bg-white rounded-xl border-2 border-amber-200 p-6 shadow-sm"
+              className="bg-white rounded-xl border-2 border-amber-200 p-4 md:p-6 shadow-sm"
             >
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
                 <h3 className="text-lg font-bold text-amber-900">
                   {formatarData(r.data)}
                 </h3>
@@ -56,7 +56,7 @@ export default function RelatorioCaixa() {
                   Diferença: R$ {r.diferenca.toFixed(2)}
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                 <div>
                   <p className="text-stone-500">Valor inicial</p>
                   <p className="font-bold tabular-nums">R$ {(r.valorInicial || 0).toFixed(2)}</p>

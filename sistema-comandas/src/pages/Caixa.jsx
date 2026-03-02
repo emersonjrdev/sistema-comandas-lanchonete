@@ -387,7 +387,7 @@ export default function Caixa() {
       <h2 className="text-2xl font-bold text-amber-900 mb-6">Caixa</h2>
 
       {/* Status e Abertura/Fechamento */}
-      <div className="mb-6 flex flex-wrap gap-4 items-center">
+      <div className="mb-6 flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 sm:items-center">
         <span
           className={`px-4 py-2 rounded-xl font-semibold ${
             caixaAberto ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
@@ -399,7 +399,7 @@ export default function Caixa() {
           <button
             type="button"
             onClick={() => setMostrarAbertura(true)}
-            className="px-4 py-2 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700"
+            className="w-full sm:w-auto px-4 py-3 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700"
           >
             Abrir caixa
           </button>
@@ -408,7 +408,7 @@ export default function Caixa() {
           <button
             type="button"
             onClick={() => setMostrarFechamento(true)}
-            className="px-4 py-2 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700"
+            className="w-full sm:w-auto px-4 py-3 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700"
           >
             Fechar caixa
           </button>
@@ -416,7 +416,7 @@ export default function Caixa() {
         <button
           type="button"
           onClick={handleLimparDadosCaixa}
-          className="px-4 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700"
+          className="w-full sm:w-auto px-4 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700"
         >
           Excluir dados do caixa
         </button>
@@ -428,8 +428,8 @@ export default function Caixa() {
           className="mb-6 p-6 bg-white rounded-xl border-2 border-amber-200"
         >
           <h3 className="text-lg font-semibold text-amber-900 mb-4">Abrir caixa</h3>
-          <div className="flex gap-4 items-end flex-wrap">
-            <div>
+          <div className="flex flex-col sm:flex-row gap-4 sm:items-end flex-wrap">
+            <div className="w-full sm:w-auto">
               <label className="block text-sm font-medium mb-1">Valor inicial (R$)</label>
               <input
                 type="text"
@@ -437,19 +437,19 @@ export default function Caixa() {
                 value={valorInicial}
                 onChange={(e) => setValorInicial(normalizarDecimalInput(e.target.value))}
                 placeholder="0,00"
-                className="px-4 py-3 rounded-lg border-2 border-amber-200 w-40"
+                className="px-4 py-3 rounded-lg border-2 border-amber-200 w-full sm:w-40"
               />
             </div>
             <button
               type="submit"
-              className="px-4 py-3 rounded-xl bg-green-600 text-white font-semibold"
+              className="w-full sm:w-auto px-4 py-3 rounded-xl bg-green-600 text-white font-semibold"
             >
               Confirmar abertura
             </button>
             <button
               type="button"
               onClick={() => setMostrarAbertura(false)}
-              className="px-4 py-3 rounded-xl bg-stone-200"
+              className="w-full sm:w-auto px-4 py-3 rounded-xl bg-stone-200"
             >
               Cancelar
             </button>
@@ -472,8 +472,8 @@ export default function Caixa() {
               Total esperado em caixa: R$ {totalEsperado.toFixed(2)}
             </p>
           </div>
-          <div className="flex gap-4 items-end flex-wrap">
-            <div>
+          <div className="flex flex-col sm:flex-row gap-4 sm:items-end flex-wrap">
+            <div className="w-full sm:w-auto">
               <label className="block text-sm font-medium mb-1">Valor contado (R$)</label>
               <input
                 type="text"
@@ -481,7 +481,7 @@ export default function Caixa() {
                 value={valorContado}
                 onChange={(e) => setValorContado(normalizarDecimalInput(e.target.value))}
                 placeholder="0,00"
-                className="px-4 py-3 rounded-lg border-2 border-amber-200 w-40"
+                className="px-4 py-3 rounded-lg border-2 border-amber-200 w-full sm:w-40"
               />
             </div>
             {valorContado && (
@@ -495,14 +495,14 @@ export default function Caixa() {
             )}
             <button
               type="submit"
-              className="px-4 py-3 rounded-xl bg-amber-600 text-white font-semibold"
+              className="w-full sm:w-auto px-4 py-3 rounded-xl bg-amber-600 text-white font-semibold"
             >
               Confirmar fechamento
             </button>
             <button
               type="button"
               onClick={() => setMostrarFechamento(false)}
-              className="px-4 py-3 rounded-xl bg-stone-200"
+              className="w-full sm:w-auto px-4 py-3 rounded-xl bg-stone-200"
             >
               Cancelar
             </button>
@@ -561,8 +561,8 @@ export default function Caixa() {
 
       <div className="mb-8 p-6 bg-white rounded-xl border-2 border-amber-200 shadow-sm">
         <h3 className="text-lg font-semibold text-amber-900 mb-4">Sangria de Caixa</h3>
-        <form onSubmit={handleRegistrarSangria} className="flex flex-wrap gap-3 items-end mb-4">
-          <div>
+        <form onSubmit={handleRegistrarSangria} className="flex flex-col sm:flex-row flex-wrap gap-3 sm:items-end mb-4">
+          <div className="w-full sm:w-auto">
             <label className="block text-sm font-medium mb-1">Valor (R$)</label>
             <input
               type="text"
@@ -570,11 +570,11 @@ export default function Caixa() {
               value={valorSangria}
               onChange={(e) => setValorSangria(normalizarDecimalInput(e.target.value))}
               placeholder="0,00"
-              className="px-4 py-3 rounded-lg border-2 border-amber-200 w-40"
+              className="px-4 py-3 rounded-lg border-2 border-amber-200 w-full sm:w-40"
               disabled={!caixaAberto || !isAdmin || registrandoSangria}
             />
           </div>
-          <div className="min-w-[260px] flex-1">
+          <div className="w-full sm:min-w-[260px] sm:flex-1">
             <label className="block text-sm font-medium mb-1">Motivo (opcional)</label>
             <input
               type="text"
@@ -588,7 +588,7 @@ export default function Caixa() {
           <button
             type="submit"
             disabled={!caixaAberto || !isAdmin || registrandoSangria}
-            className="px-5 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50"
+            className="w-full sm:w-auto px-5 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50"
           >
             {registrandoSangria ? 'Registrando...' : 'Registrar Sangria'}
           </button>
@@ -669,7 +669,7 @@ export default function Caixa() {
                     </ul>
                   )}
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                   <p className="text-xl font-bold text-amber-800 tabular-nums">
                     R$ {total.toFixed(2)}
                   </p>
@@ -687,14 +687,14 @@ export default function Caixa() {
                       setPesoFrioComandaInput('100')
                       setPesoFrioComandaUnidade('g')
                     }}
-                    className="px-4 py-3 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700"
+                    className="w-full sm:w-auto px-4 py-3 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700"
                   >
                     {comandaEdicaoId === comanda.id ? 'Fechar edição' : 'Editar pedido'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setComandaPagamento(comanda)}
-                    className="px-6 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700"
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700"
                   >
                     Cobrar
                   </button>
@@ -723,11 +723,11 @@ export default function Caixa() {
                       </p>
                     )}
 
-                    <div className="flex gap-2 flex-wrap items-end">
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 items-stretch sm:items-end">
                       <select
                         value={produtoComandaSelecionado}
                         onChange={(e) => setProdutoComandaSelecionado(e.target.value)}
-                        className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                        className="w-full sm:w-auto sm:min-w-[180px] px-3 py-2 rounded-lg border-2 border-amber-200"
                       >
                         <option value="">Produto...</option>
                         {produtosOrdenados.map((p) => (
@@ -743,14 +743,14 @@ export default function Caixa() {
                         value={quantidadeComanda}
                         onChange={(e) => setQuantidadeComanda(normalizarQuantidadeInput(e.target.value))}
                         onBlur={() => setQuantidadeComanda(String(quantidadeParaNumero(quantidadeComanda)))}
-                        className="w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
+                        className="w-full sm:w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
                       />
                       {comandaEhFrios && (
                         <>
                           <select
                             value={tipoFrioComanda}
                             onChange={(e) => setTipoFrioComanda(e.target.value)}
-                            className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                            className="w-full sm:w-auto px-3 py-2 rounded-lg border-2 border-amber-200"
                           >
                             {tiposFrios.map((tipo) => (
                               <option key={tipo} value={tipo}>
@@ -765,12 +765,12 @@ export default function Caixa() {
                             onChange={(e) =>
                               setPesoFrioComandaInput(e.target.value.replace(/[^\d,.]/g, ''))
                             }
-                            className="w-24 px-3 py-2 rounded-lg border-2 border-amber-200"
+                            className="w-full sm:w-24 px-3 py-2 rounded-lg border-2 border-amber-200"
                           />
                           <select
                             value={pesoFrioComandaUnidade}
                             onChange={(e) => setPesoFrioComandaUnidade(e.target.value)}
-                            className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                            className="w-full sm:w-auto px-3 py-2 rounded-lg border-2 border-amber-200"
                           >
                             <option value="g">g</option>
                             <option value="kg">kg</option>
@@ -781,7 +781,7 @@ export default function Caixa() {
                         type="button"
                         onClick={handleAdicionarItemComanda}
                         disabled={!produtoComandaSelecionado}
-                        className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold disabled:opacity-50"
+                        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-green-600 text-white font-semibold disabled:opacity-50"
                       >
                         + Adicionar item
                       </button>
@@ -858,11 +858,11 @@ export default function Caixa() {
               {vendaAdicionarItem?.id === venda.id && (
                 <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
                   <p className="text-sm font-semibold mb-2">Adicionar item à venda</p>
-                  <div className="flex gap-2 flex-wrap items-end">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 items-stretch sm:items-end">
                     <select
                       value={produtoSelecionado}
                       onChange={(e) => setProdutoSelecionado(e.target.value)}
-                      className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                      className="w-full sm:w-auto sm:min-w-[180px] px-3 py-2 rounded-lg border-2 border-amber-200"
                     >
                       <option value="">Produto...</option>
                       {produtosOrdenados.map((p) => (
@@ -878,14 +878,14 @@ export default function Caixa() {
                       value={quantidade}
                       onChange={(e) => setQuantidade(normalizarQuantidadeInput(e.target.value))}
                       onBlur={() => setQuantidade(String(quantidadeParaNumero(quantidade)))}
-                      className="w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
+                      className="w-full sm:w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
                     />
                     {vendaEhFrios && (
                       <>
                         <select
                           value={tipoFrioVenda}
                           onChange={(e) => setTipoFrioVenda(e.target.value)}
-                          className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                          className="w-full sm:w-auto px-3 py-2 rounded-lg border-2 border-amber-200"
                         >
                           {tiposFrios.map((tipo) => (
                             <option key={tipo} value={tipo}>
@@ -898,12 +898,12 @@ export default function Caixa() {
                           inputMode="decimal"
                           value={pesoFrioVendaInput}
                           onChange={(e) => setPesoFrioVendaInput(e.target.value.replace(/[^\d,.]/g, ''))}
-                          className="w-24 px-3 py-2 rounded-lg border-2 border-amber-200"
+                          className="w-full sm:w-24 px-3 py-2 rounded-lg border-2 border-amber-200"
                         />
                         <select
                           value={pesoFrioVendaUnidade}
                           onChange={(e) => setPesoFrioVendaUnidade(e.target.value)}
-                          className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                          className="w-full sm:w-auto px-3 py-2 rounded-lg border-2 border-amber-200"
                         >
                           <option value="g">g</option>
                           <option value="kg">kg</option>
@@ -914,7 +914,7 @@ export default function Caixa() {
                       type="button"
                       onClick={handleAdicionarItemVenda}
                       disabled={!produtoSelecionado}
-                      className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold disabled:opacity-50"
+                      className="w-full sm:w-auto px-4 py-2 rounded-lg bg-green-600 text-white font-semibold disabled:opacity-50"
                     >
                       Adicionar
                     </button>
@@ -928,7 +928,7 @@ export default function Caixa() {
                         setPesoFrioVendaInput('100')
                         setPesoFrioVendaUnidade('g')
                       }}
-                      className="px-4 py-2 rounded-lg bg-stone-200"
+                      className="w-full sm:w-auto px-4 py-2 rounded-lg bg-stone-200"
                     >
                       Cancelar
                     </button>

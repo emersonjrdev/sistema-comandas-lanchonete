@@ -16,8 +16,9 @@ export default function ComandaDetalhe({
   onEnviada,
   onVoltar,
   isMobile = false,
+  isTablet = false,
 }) {
-  const [mostrarAdicionar, setMostrarAdicionar] = useState(isMobile)
+  const [mostrarAdicionar, setMostrarAdicionar] = useState(isMobile || isTablet)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState('1')
   const [tipoFrio, setTipoFrio] = useState('Presunto')
@@ -56,10 +57,10 @@ export default function ComandaDetalhe({
       .toLowerCase() === 'frios'
 
   useEffect(() => {
-    if (isMobile) {
+    if (isMobile || isTablet) {
       setMostrarAdicionar(true)
     }
-  }, [isMobile])
+  }, [isMobile, isTablet])
 
   async function handleAdicionarProduto() {
     if (!produtoSelecionado) return
@@ -126,7 +127,7 @@ export default function ComandaDetalhe({
           type="button"
           onClick={onVoltar}
           className={`flex items-center gap-2 rounded-lg bg-amber-100 text-amber-800 font-semibold hover:bg-amber-200 transition-colors touch-manipulation ${
-            isMobile ? 'px-6 py-4 text-lg min-h-[52px]' : 'px-4 py-2'
+            isMobile || isTablet ? 'px-6 py-4 text-lg min-h-[52px]' : 'px-4 py-2'
           }`}
         >
           ← Voltar
@@ -144,7 +145,7 @@ export default function ComandaDetalhe({
               type="button"
               onClick={() => setMostrarAdicionar(!mostrarAdicionar)}
               className={`rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors touch-manipulation min-h-[44px] ${
-                isMobile ? 'w-full px-4 py-3 text-lg' : 'px-4 py-2'
+                isMobile || isTablet ? 'w-full px-4 py-3 text-lg' : 'px-4 py-2'
               }`}
             >
               {mostrarAdicionar ? 'Fechar adição de produto' : '+ Adicionar Produto'}
@@ -227,12 +228,12 @@ export default function ComandaDetalhe({
                 </div>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 onClick={handleAdicionarProduto}
                 disabled={!produtoSelecionado}
-                className="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                className="px-4 py-3 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
               >
                 Adicionar
               </button>
@@ -246,7 +247,7 @@ export default function ComandaDetalhe({
                   setPesoFrioInput('100')
                   setPesoFrioUnidade('g')
                 }}
-                className="px-4 py-2 rounded-lg bg-stone-200 text-stone-700 font-semibold hover:bg-stone-300 touch-manipulation"
+                className="px-4 py-3 rounded-lg bg-stone-200 text-stone-700 font-semibold hover:bg-stone-300 touch-manipulation"
               >
                 Cancelar
               </button>
@@ -284,7 +285,9 @@ export default function ComandaDetalhe({
         type="button"
         onClick={handleEnviarParaCaixa}
         className={`w-full rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-colors touch-manipulation ${
-          isMobile ? 'px-8 py-5 text-xl min-h-[64px]' : 'sm:w-auto px-8 py-4 text-lg min-h-[56px]'
+          isMobile || isTablet
+            ? 'px-8 py-5 text-xl min-h-[64px]'
+            : 'sm:w-auto px-8 py-4 text-lg min-h-[56px]'
         }`}
       >
         Enviar para Caixa

@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
-const navItems = [
+export const navItems = [
   { to: '/', label: 'Dashboard', icon: '📊', adminOnly: true },
   { to: '/comandas', label: 'Comandas', icon: '📋', adminOnly: false },
   { to: '/caixa', label: 'Caixa', icon: '💰', adminOnly: true },
