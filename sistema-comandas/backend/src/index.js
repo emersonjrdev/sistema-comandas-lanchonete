@@ -237,6 +237,27 @@ async function resetarComandasParaNovoDia() {
   return totalResetadas
 }
 
+async function listarNumerosComandasEmUso() {
+  const [abertasSnap, aguardandoSnap] = await Promise.all([
+    comandasCol.where('status', '==', 'aberta').get(),
+    comandasCol.where('status', '==', 'aguardando_pagamento').get(),
+  ])
+  const usadas = new Set()
+  for (const doc of [...abertasSnap.docs, ...aguardandoSnap.docs]) {
+    const numero = String(doc.data()?.numero_comanda || '').trim()
+    if (numero) usadas.add(numero)
+  }
+  return usadas
+}
+
+function getProximaComandaDisponivel(numerosEmUso) {
+  for (let i = 1; i <= 100; i += 1) {
+    const numero = String(i).padStart(3, '0')
+    if (!numerosEmUso.has(numero)) return numero
+  }
+  return null
+}
+
 async function getCaixaStatus() {
   const snap = await caixaConfigRef.get()
   if (!snap.exists) {
@@ -583,6 +604,15 @@ app.post('/comandas', async (req, res) => {
     return res.status(400).json({ error: 'numeroComanda deve estar entre 1 e 100' })
   }
   const numeroFormatado = String(numeroInt).padStart(3, '0')
+  const numerosEmUso = await listarNumerosComandasEmUso()
+  if (numerosEmUso.has(numeroFormatado)) {
+    const proximaDisponivel = getProximaComandaDisponivel(numerosEmUso)
+    const mensagemBase = `Comanda ${numeroFormatado} já está em uso`
+    const mensagem = proximaDisponivel
+      ? `${mensagemBase}. Use a próxima disponível: ${proximaDisponivel}.`
+      : `${mensagemBase}. Não há comandas disponíveis no momento.`
+    return res.status(409).json({ error: mensagem, proximaDisponivel })
+  }
   const identificacao = `Comanda ${numeroFormatado}`
 
   const nova = {

@@ -65,7 +65,14 @@ export default function ComandasPage() {
     }
 
     const numeroFormatado = String(numeroInt).padStart(3, '0')
-    const nova = await criarComanda(numeroFormatado)
+    let nova = null
+    try {
+      nova = await criarComanda(numeroFormatado)
+    } catch (error) {
+      playSomErro()
+      toast.show(error?.message || 'Não foi possível criar a comanda', 'error')
+      return
+    }
     if (!nova) {
       playSomErro()
       return
