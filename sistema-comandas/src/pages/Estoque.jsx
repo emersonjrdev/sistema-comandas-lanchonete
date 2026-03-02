@@ -139,7 +139,7 @@ export default function Estoque() {
                     onClick={() => setEditando(produto)}
                     className="w-full py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700"
                   >
-                    Ajustar estoque
+                    Atualizar estoque
                   </button>
                 )}
               </div>
