@@ -8,6 +8,10 @@ export default function Estoque() {
   const [editando, setEditando] = useState(null)
   const [valorEntrada, setValorEntrada] = useState('')
 
+  function sanitizarInteiro(valor) {
+    return String(valor || '').replace(/\D/g, '')
+  }
+
   async function handleSalvarEstoque(produtoId) {
     const v = parseInt(valorEntrada, 10)
     if (isNaN(v) || v < 0) return
@@ -40,6 +44,9 @@ export default function Estoque() {
         <div className="mb-6 p-4 rounded-xl bg-amber-100 border-2 border-amber-300">
           <p className="font-semibold text-amber-900">
             ⚠️ {estoqueBaixo.length} produto(s) com estoque baixo (menos de 5 unidades)
+          </p>
+          <p className="text-sm text-amber-900 mt-1">
+            {estoqueBaixo.map((p) => `${p.nome} (${p.estoque ?? 0})`).join(', ')}
           </p>
         </div>
       )}
@@ -76,10 +83,11 @@ export default function Estoque() {
                 {isEditando ? (
                   <div className="space-y-2">
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={valorEntrada}
-                      onChange={(e) => setValorEntrada(e.target.value)}
+                      onChange={(e) => setValorEntrada(sanitizarInteiro(e.target.value))}
                       placeholder="Quantidade"
                       className="w-full px-3 py-2 rounded-lg border-2 border-amber-200"
                     />

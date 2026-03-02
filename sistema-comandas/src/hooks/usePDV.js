@@ -55,6 +55,7 @@ export function useDashboard() {
     vendasFinalizadasHoje: 0,
     totalHistorico: 0,
     totalVendas: 0,
+    produtosEstoqueBaixo: [],
   })
 
   const refresh = useCallback(async () => {
@@ -75,6 +76,7 @@ export function useDashboard() {
         vendasFinalizadasHoje: 0,
         totalHistorico: 0,
         totalVendas: 0,
+        produtosEstoqueBaixo: [],
       })
     })
   }, [refresh])

@@ -15,6 +15,25 @@ export default function Produtos() {
   const [formPreco, setFormPreco] = useState('')
   const [formEstoque, setFormEstoque] = useState('0')
 
+  function sanitizarInteiro(valor) {
+    return String(valor || '').replace(/\D/g, '')
+  }
+
+  function sanitizarDecimal(valor) {
+    const limpo = String(valor || '').replace(/[^\d,.]/g, '')
+    let resultado = ''
+    let separadorUsado = false
+    for (const ch of limpo) {
+      if ((ch === ',' || ch === '.') && !separadorUsado) {
+        resultado += ch
+        separadorUsado = true
+        continue
+      }
+      if (/\d/.test(ch)) resultado += ch
+    }
+    return resultado
+  }
+
   function limparForm() {
     setFormNome('')
     setFormPreco('')
@@ -26,17 +45,23 @@ export default function Produtos() {
   async function handleSalvar(e) {
     e.preventDefault()
     const nome = formNome.trim()
-    const preco = parseFloat(formPreco)
+    const preco = parseFloat(String(formPreco).replace(',', '.'))
     if (!nome || isNaN(preco) || preco < 0) {
       playSomErro()
       return
     }
 
     const estoque = Math.max(0, parseInt(formEstoque, 10) || 0)
-    if (editando) {
-      await editarProduto(editando.id, nome, preco, estoque)
-    } else {
-      await addProduto({ nome, preco, estoque })
+    try {
+      if (editando) {
+        await editarProduto(editando.id, nome, preco, estoque)
+      } else {
+        await addProduto({ nome, preco, estoque })
+      }
+    } catch (error) {
+      playSomErro()
+      window.alert(error?.message || 'Não foi possível salvar o produto.')
+      return
     }
     playSomAcao()
     await refreshProdutos()
@@ -52,8 +77,19 @@ export default function Produtos() {
   }
 
   async function handleExcluir(produto) {
+    if (produto.fixo === true) {
+      playSomErro()
+      window.alert('Produto fixo não pode ser excluído.')
+      return
+    }
     if (window.confirm(`Excluir "${produto.nome}"?`)) {
-      await excluirProduto(produto.id)
+      try {
+        await excluirProduto(produto.id)
+      } catch (error) {
+        playSomErro()
+        window.alert(error?.message || 'Não foi possível excluir o produto.')
+        return
+      }
       playSomAcao()
       await refreshProdutos()
       if (editando?.id === produto.id) limparForm()
@@ -96,18 +132,23 @@ export default function Produtos() {
                 placeholder="Ex: X-Burger"
                 className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900"
                 required
+                disabled={editando?.fixo === true}
               />
+              {editando?.fixo === true && (
+                <p className="text-xs text-stone-500 mt-1">
+                  Produto fixo: o nome não pode ser alterado.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-amber-900 mb-1">
                 Preço (R$)
               </label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
                 value={formPreco}
-                onChange={(e) => setFormPreco(e.target.value)}
+                onChange={(e) => setFormPreco(sanitizarDecimal(e.target.value))}
                 placeholder="0,00"
                 className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900 font-mono tabular-nums"
                 required
@@ -118,10 +159,11 @@ export default function Produtos() {
                 Estoque
               </label>
               <input
-                type="number"
-                min="0"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={formEstoque}
-                onChange={(e) => setFormEstoque(e.target.value)}
+                onChange={(e) => setFormEstoque(sanitizarInteiro(e.target.value))}
                 placeholder="0"
                 className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900 font-mono tabular-nums"
               />
@@ -173,6 +215,9 @@ export default function Produtos() {
                   <h3 className="text-lg font-bold text-amber-900">
                     {produto.nome}
                   </h3>
+                  {produto.fixo === true && (
+                    <p className="text-xs text-amber-700 mt-1">Produto fixo</p>
+                  )}
                   <p className="text-xl font-bold text-amber-800 tabular-nums mt-1">
                     R$ {Number(produto.preco).toFixed(2)}
                   </p>
@@ -192,8 +237,10 @@ export default function Produtos() {
                   <button
                     type="button"
                     onClick={() => handleExcluir(produto)}
-                    className="w-10 h-10 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors touch-manipulation"
+                    className="w-10 h-10 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors touch-manipulation disabled:opacity-50"
                     aria-label="Excluir"
+                    disabled={produto.fixo === true}
+                    title={produto.fixo === true ? 'Produto fixo não pode ser excluído' : 'Excluir'}
                   >
                     🗑️
                   </button>

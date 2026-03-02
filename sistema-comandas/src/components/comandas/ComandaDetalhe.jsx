@@ -19,7 +19,7 @@ export default function ComandaDetalhe({
 }) {
   const [mostrarAdicionar, setMostrarAdicionar] = useState(isMobile)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
-  const [quantidade, setQuantidade] = useState(1)
+  const [quantidade, setQuantidade] = useState('1')
   const toast = useToast()
 
   const total =
@@ -44,19 +44,20 @@ export default function ComandaDetalhe({
 
   async function handleAdicionarProduto() {
     if (!produtoSelecionado) return
+    const quantidadeNum = Math.max(1, parseInt(quantidade, 10) || 1)
 
-    if (estoqueDisponivel(produtoSelecionado) < Number(quantidade || 0)) {
+    if (estoqueDisponivel(produtoSelecionado) < quantidadeNum) {
       playSomErro()
       toast.show('Estoque insuficiente para este produto', 'error')
       return
     }
 
-    const atualizada = await adicionarItem(comanda.id, produtoSelecionado, quantidade)
+    const atualizada = await adicionarItem(comanda.id, produtoSelecionado, quantidadeNum)
     if (atualizada) {
       playSomAcao()
       onComandaAtualizada(atualizada)
       setProdutoSelecionado('')
-      setQuantidade(1)
+      setQuantidade('1')
       setMostrarAdicionar(!isMobile) // no mobile continua aberto
     } else {
       playSomErro()
@@ -151,12 +152,15 @@ export default function ComandaDetalhe({
                   Quantidade
                 </label>
                 <input
-                  type="number"
-                  min={1}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={quantidade}
-                  onChange={(e) =>
-                    setQuantidade(Math.max(1, parseInt(e.target.value, 10) || 1))
-                  }
+                  onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, ''))}
+                  onBlur={() => {
+                    const quantidadeNum = Math.max(1, parseInt(quantidade, 10) || 1)
+                    setQuantidade(String(quantidadeNum))
+                  }}
                   className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
                 />
               </div>
@@ -175,7 +179,7 @@ export default function ComandaDetalhe({
                 onClick={() => {
                   setMostrarAdicionar(false)
                   setProdutoSelecionado('')
-                  setQuantidade(1)
+                  setQuantidade('1')
                 }}
                 className="px-4 py-2 rounded-lg bg-stone-200 text-stone-700 font-semibold hover:bg-stone-300 touch-manipulation"
               >

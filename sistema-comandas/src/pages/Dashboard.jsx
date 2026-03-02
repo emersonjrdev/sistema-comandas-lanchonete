@@ -2,6 +2,7 @@ import { useDashboard } from '../hooks/usePDV'
 
 export default function Dashboard() {
   const [resumo] = useDashboard()
+  const produtosBaixo = resumo.produtosEstoqueBaixo || []
 
   return (
     <div>
@@ -80,6 +81,11 @@ export default function Dashboard() {
           >
             {resumo.estoqueBaixo ?? 0}
           </p>
+          {produtosBaixo.length > 0 && (
+            <p className="mt-2 text-xs text-stone-600">
+              {produtosBaixo.map((p) => `${p.nome} (${p.estoque})`).join(', ')}
+            </p>
+          )}
         </div>
         <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm sm:col-span-2">
           <p className="text-sm font-medium text-stone-500 mb-1">Total histórico</p>

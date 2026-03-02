@@ -51,6 +51,7 @@ const vendasCol = db.collection('vendas')
 const fechamentosCol = db.collection('caixa_fechamentos')
 const caixaConfigRef = db.collection('config').doc('caixa')
 const caixasCol = db.collection('caixas')
+const PRODUTOS_FIXOS = ['Pão', 'Frios', 'Bolos']
 
 function gerarId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -106,6 +107,14 @@ function toIsoString(value) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return null
   return parsed.toISOString()
+}
+
+function normalizarNomeProduto(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
 }
 
 async function apagarColecao(colRef) {
@@ -205,6 +214,40 @@ async function listarVendasHistorico() {
   return snap.docs.map((doc) => docToEntity(doc))
 }
 
+async function seedProdutosFixos() {
+  const snap = await produtosCol.get()
+  const existentes = snap.docs.map((doc) => ({ ref: doc.ref, data: doc.data() || {} }))
+  const mapaPorNome = new Map(
+    existentes.map((item) => [normalizarNomeProduto(item.data.nome), item])
+  )
+
+  for (const nomeFixo of PRODUTOS_FIXOS) {
+    const chave = normalizarNomeProduto(nomeFixo)
+    const existente = mapaPorNome.get(chave)
+    if (existente) {
+      if (existente.data.fixo !== true) {
+        await existente.ref.set(
+          {
+            fixo: true,
+            updated_at: new Date().toISOString(),
+          },
+          { merge: true }
+        )
+      }
+      continue
+    }
+
+    await produtosCol.add({
+      nome: nomeFixo,
+      preco: 0,
+      estoque: 0,
+      fixo: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+  }
+}
+
 async function seedUsuarios() {
   const snap = await usuariosCol.limit(1).get()
   if (!snap.empty) return
@@ -225,6 +268,7 @@ async function seedUsuarios() {
 }
 
 await seedUsuarios()
+await seedProdutosFixos()
 
 const app = express()
 app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || '*' }))
@@ -290,19 +334,42 @@ app.post('/usuarios', async (req, res) => {
 })
 
 app.get('/produtos', async (_, res) => {
-  const snap = await produtosCol.orderBy('created_at', 'desc').get()
-  const rows = snap.docs.map((doc) => docToEntity(doc))
+  const snap = await produtosCol.get()
+  const rows = snap.docs
+    .map((doc) => docToEntity(doc))
+    .sort((a, b) => {
+      const aFixo = a.fixo === true
+      const bFixo = b.fixo === true
+      if (aFixo !== bFixo) return aFixo ? -1 : 1
+
+      if (aFixo && bFixo) {
+        const idxA = PRODUTOS_FIXOS.findIndex(
+          (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(a.nome)
+        )
+        const idxB = PRODUTOS_FIXOS.findIndex(
+          (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(b.nome)
+        )
+        if (idxA !== idxB) return idxA - idxB
+      }
+
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    })
   res.json(rows)
 })
 
 app.post('/produtos', async (req, res) => {
   const { nome, preco = 0, estoque = 0 } = req.body || {}
   if (!nome) return res.status(400).json({ error: 'nome é obrigatório' })
+  const nomeFinal = String(nome).trim()
+  const fixo = PRODUTOS_FIXOS.some(
+    (item) => normalizarNomeProduto(item) === normalizarNomeProduto(nomeFinal)
+  )
 
   const novo = {
-    nome: String(nome).trim(),
+    nome: nomeFinal,
     preco: Number(preco) || 0,
     estoque: Math.max(0, Number(estoque) || 0),
+    fixo,
     created_at: new Date().toISOString(),
   }
   const ref = await produtosCol.add(novo)
@@ -318,9 +385,14 @@ app.put('/produtos/:id', async (req, res) => {
   const snap = await ref.get()
   if (!snap.exists) return res.status(404).json({ error: 'Produto não encontrado' })
   const atual = snap.data() || {}
+  const nomeAtual = String(atual.nome || '').trim()
+  const nomeNovo = nome !== undefined ? String(nome).trim() : nomeAtual
+  if (atual.fixo === true && normalizarNomeProduto(nomeNovo) !== normalizarNomeProduto(nomeAtual)) {
+    return res.status(400).json({ error: 'Produto fixo não pode ter o nome alterado' })
+  }
 
   await ref.update({
-    nome: nome !== undefined ? String(nome).trim() : atual.nome,
+    nome: nomeNovo,
     preco: preco !== undefined ? Number(preco) || 0 : Number(atual.preco || 0),
     estoque:
       estoque !== undefined
@@ -371,6 +443,10 @@ app.delete('/produtos/:id', async (req, res) => {
   const ref = produtosCol.doc(String(id))
   const snap = await ref.get()
   if (!snap.exists) return res.status(404).json({ error: 'Produto não encontrado' })
+  const atual = snap.data() || {}
+  if (atual.fixo === true) {
+    return res.status(400).json({ error: 'Produto fixo não pode ser excluído' })
+  }
   await ref.delete()
   res.status(204).send()
 })
@@ -405,6 +481,9 @@ app.post('/comandas', async (req, res) => {
     payload.cliente
   const numero = numeroBruto != null ? String(numeroBruto).trim() : ''
   if (!numero) return res.status(400).json({ error: 'numeroComanda é obrigatório' })
+  if (!/^\d+$/.test(numero)) {
+    return res.status(400).json({ error: 'numeroComanda deve conter apenas números' })
+  }
   const identificacao = `Comanda ${numero}`
 
   const nova = {
@@ -912,9 +991,11 @@ app.get('/dashboard/resumo', async (_, res) => {
   const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
   const dinheiroLiquido = Number(totaisHoje.totalDinheiro || 0) - Number(totalSangrias || 0)
 
-  const estoqueBaixo = produtosSnap.docs
+  const produtosEstoqueBaixo = produtosSnap.docs
     .map((doc) => docToEntity(doc))
-    .filter((p) => Number(p.estoque || 0) < 5).length
+    .filter((p) => Number(p.estoque || 0) < 5)
+    .sort((a, b) => Number(a.estoque || 0) - Number(b.estoque || 0))
+  const estoqueBaixo = produtosEstoqueBaixo.length
 
   res.json({
     totalHoje: totaisHoje.totalHoje,
@@ -930,6 +1011,11 @@ app.get('/dashboard/resumo', async (_, res) => {
     totalVendas: vendas.length,
     caixaAberto: caixaAtual.aberto,
     estoqueBaixo,
+    produtosEstoqueBaixo: produtosEstoqueBaixo.map((p) => ({
+      id: p.id,
+      nome: p.nome,
+      estoque: Number(p.estoque || 0),
+    })),
   })
 })
 

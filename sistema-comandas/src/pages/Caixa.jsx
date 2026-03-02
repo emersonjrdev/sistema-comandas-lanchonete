@@ -64,9 +64,9 @@ export default function Caixa() {
   const [comandaEdicaoId, setComandaEdicaoId] = useState(null)
   const [vendaAdicionarItem, setVendaAdicionarItem] = useState(null)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
-  const [quantidade, setQuantidade] = useState(1)
+  const [quantidade, setQuantidade] = useState('1')
   const [produtoComandaSelecionado, setProdutoComandaSelecionado] = useState('')
-  const [quantidadeComanda, setQuantidadeComanda] = useState(1)
+  const [quantidadeComanda, setQuantidadeComanda] = useState('1')
   const [valorSangria, setValorSangria] = useState('')
   const [motivoSangria, setMotivoSangria] = useState('')
   const [registrandoSangria, setRegistrandoSangria] = useState(false)
@@ -88,6 +88,29 @@ export default function Caixa() {
     () => comandasPendentes.find((comanda) => comanda.id === comandaEdicaoId) || null,
     [comandasPendentes, comandaEdicaoId]
   )
+
+  function normalizarQuantidadeInput(valor) {
+    return String(valor || '').replace(/\D/g, '')
+  }
+
+  function normalizarDecimalInput(valor) {
+    const limpo = String(valor || '').replace(/[^\d,.]/g, '')
+    let resultado = ''
+    let separadorUsado = false
+    for (const ch of limpo) {
+      if ((ch === ',' || ch === '.') && !separadorUsado) {
+        resultado += ch
+        separadorUsado = true
+        continue
+      }
+      if (/\d/.test(ch)) resultado += ch
+    }
+    return resultado
+  }
+
+  function quantidadeParaNumero(valor) {
+    return Math.max(1, parseInt(String(valor || ''), 10) || 1)
+  }
 
   async function handleAbrirCaixa(e) {
     e?.preventDefault()
@@ -207,19 +230,20 @@ export default function Caixa() {
 
   async function handleAdicionarItemVenda() {
     if (!vendaAdicionarItem || !produtoSelecionado) return
+    const quantidadeNum = quantidadeParaNumero(quantidade)
     const produto = produtos.find((p) => String(p.id) === String(produtoSelecionado))
-    if (Number(produto?.estoque ?? 0) < Number(quantidade || 0)) {
+    if (Number(produto?.estoque ?? 0) < quantidadeNum) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
-    const venda = await adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, quantidade)
+    const venda = await adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, quantidadeNum)
     if (venda) {
       playSomVenda()
       await refresh()
       setVendaAdicionarItem(null)
       setProdutoSelecionado('')
-      setQuantidade(1)
+      setQuantidade('1')
       toast.show('Item adicionado à venda!')
     } else {
       playSomErro()
@@ -230,13 +254,14 @@ export default function Caixa() {
   function limparEdicaoComanda() {
     setComandaEdicaoId(null)
     setProdutoComandaSelecionado('')
-    setQuantidadeComanda(1)
+    setQuantidadeComanda('1')
   }
 
   async function handleAdicionarItemComanda() {
     if (!comandaEdicaoId || !produtoComandaSelecionado) return
+    const quantidadeComandaNum = quantidadeParaNumero(quantidadeComanda)
     const produto = produtos.find((p) => String(p.id) === String(produtoComandaSelecionado))
-    if (Number(produto?.estoque ?? 0) < Number(quantidadeComanda || 0)) {
+    if (Number(produto?.estoque ?? 0) < quantidadeComandaNum) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
@@ -245,13 +270,13 @@ export default function Caixa() {
     const comandaAtualizada = await adicionarItem(
       comandaEdicaoId,
       produtoComandaSelecionado,
-      quantidadeComanda
+      quantidadeComandaNum
     )
     if (comandaAtualizada) {
       playSomVenda()
       await refresh()
       setProdutoComandaSelecionado('')
-      setQuantidadeComanda(1)
+      setQuantidadeComanda('1')
       toast.show('Item adicionado ao pedido!')
     } else {
       playSomErro()
@@ -354,7 +379,7 @@ export default function Caixa() {
                 type="text"
                 inputMode="decimal"
                 value={valorInicial}
-                onChange={(e) => setValorInicial(e.target.value.replace(/[^\d,.]/g, ''))}
+                onChange={(e) => setValorInicial(normalizarDecimalInput(e.target.value))}
                 placeholder="0,00"
                 className="px-4 py-3 rounded-lg border-2 border-amber-200 w-40"
               />
@@ -398,9 +423,7 @@ export default function Caixa() {
                 type="text"
                 inputMode="decimal"
                 value={valorContado}
-                onChange={(e) =>
-                  setValorContado(e.target.value.replace(/[^\d,.]/g, ''))
-                }
+                onChange={(e) => setValorContado(normalizarDecimalInput(e.target.value))}
                 placeholder="0,00"
                 className="px-4 py-3 rounded-lg border-2 border-amber-200 w-40"
               />
@@ -489,7 +512,7 @@ export default function Caixa() {
               type="text"
               inputMode="decimal"
               value={valorSangria}
-              onChange={(e) => setValorSangria(e.target.value.replace(/[^\d,.]/g, ''))}
+              onChange={(e) => setValorSangria(normalizarDecimalInput(e.target.value))}
               placeholder="0,00"
               className="px-4 py-3 rounded-lg border-2 border-amber-200 w-40"
               disabled={!caixaAberto || !isAdmin || registrandoSangria}
@@ -603,7 +626,7 @@ export default function Caixa() {
                       }
                       setComandaEdicaoId(comanda.id)
                       setProdutoComandaSelecionado('')
-                      setQuantidadeComanda(1)
+                      setQuantidadeComanda('1')
                     }}
                     className="px-4 py-3 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700"
                   >
@@ -655,14 +678,12 @@ export default function Caixa() {
                         ))}
                       </select>
                       <input
-                        type="number"
-                        min={1}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={quantidadeComanda}
-                        onChange={(e) =>
-                          setQuantidadeComanda(
-                            Math.max(1, parseInt(e.target.value, 10) || 1)
-                          )
-                        }
+                        onChange={(e) => setQuantidadeComanda(normalizarQuantidadeInput(e.target.value))}
+                        onBlur={() => setQuantidadeComanda(String(quantidadeParaNumero(quantidadeComanda)))}
                         className="w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
                       />
                       <button
@@ -760,14 +781,12 @@ export default function Caixa() {
                       ))}
                     </select>
                     <input
-                      type="number"
-                      min={1}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={quantidade}
-                      onChange={(e) =>
-                        setQuantidade(
-                          Math.max(1, parseInt(e.target.value, 10) || 1)
-                        )
-                      }
+                      onChange={(e) => setQuantidade(normalizarQuantidadeInput(e.target.value))}
+                      onBlur={() => setQuantidade(String(quantidadeParaNumero(quantidade)))}
                       className="w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
                     />
                     <button
@@ -783,7 +802,7 @@ export default function Caixa() {
                       onClick={() => {
                         setVendaAdicionarItem(null)
                         setProdutoSelecionado('')
-                        setQuantidade(1)
+                        setQuantidade('1')
                       }}
                       className="px-4 py-2 rounded-lg bg-stone-200"
                     >

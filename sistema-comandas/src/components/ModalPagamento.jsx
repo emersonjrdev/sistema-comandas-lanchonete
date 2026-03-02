@@ -12,6 +12,21 @@ export default function ModalPagamento({ total, onConfirmar, onCancelar }) {
   const [erro, setErro] = useState('')
   const inputRef = useRef(null)
 
+  function normalizarDecimalInput(valor) {
+    const limpo = String(valor || '').replace(/[^\d,.]/g, '')
+    let resultado = ''
+    let separadorUsado = false
+    for (const ch of limpo) {
+      if ((ch === ',' || ch === '.') && !separadorUsado) {
+        resultado += ch
+        separadorUsado = true
+        continue
+      }
+      if (/\d/.test(ch)) resultado += ch
+    }
+    return resultado
+  }
+
   const troco =
     metodo === 'D' && valorRecebido
       ? Math.max(0, (parseFloat(valorRecebido.replace(',', '.')) || 0) - total)
@@ -117,7 +132,7 @@ export default function ModalPagamento({ total, onConfirmar, onCancelar }) {
               type="text"
               inputMode="decimal"
               value={valorRecebido}
-              onChange={(e) => setValorRecebido(e.target.value.replace(/[^\d,.]/g, ''))}
+              onChange={(e) => setValorRecebido(normalizarDecimalInput(e.target.value))}
               placeholder="0,00"
               className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900 font-mono text-xl"
             />

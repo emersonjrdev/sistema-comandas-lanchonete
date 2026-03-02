@@ -10,6 +10,8 @@ export default function ComandasPage() {
   const [comandas, refreshComandas] = useComandas()
   const [produtos] = useProdutos()
   const [comandaSelecionada, setComandaSelecionada] = useState(null)
+  const [mostrarModalNovaComanda, setMostrarModalNovaComanda] = useState(false)
+  const [numeroNovaComanda, setNumeroNovaComanda] = useState('')
   const [busca, setBusca] = useState('')
   const bipadorRef = useRef(null)
   const isMobile = useIsMobile()
@@ -41,23 +43,38 @@ export default function ComandasPage() {
     if (isMobile) bipadorRef.current?.focus()
   }, [isMobile])
 
-  async function handleNovaComanda() {
-    const numeroComanda = window.prompt('Número da comanda:', '')
-    if (numeroComanda === null) return
-    if (!numeroComanda.trim()) {
+  async function handleCriarNovaComanda() {
+    const numeroComanda = String(numeroNovaComanda || '').trim()
+    if (!numeroComanda) {
+      playSomErro()
+      return
+    }
+    if (!/^\d+$/.test(numeroComanda)) {
       playSomErro()
       return
     }
 
-    const nova = await criarComanda(numeroComanda.trim())
+    const nova = await criarComanda(numeroComanda)
     if (!nova) {
       playSomErro()
       return
     }
     playSomAcao()
+    setMostrarModalNovaComanda(false)
+    setNumeroNovaComanda('')
     setComandaSelecionada(nova)
     try {
       await refreshComandas()
+  function abrirModalNovaComanda() {
+    setNumeroNovaComanda('')
+    setMostrarModalNovaComanda(true)
+  }
+
+  function fecharModalNovaComanda() {
+    setMostrarModalNovaComanda(false)
+    setNumeroNovaComanda('')
+  }
+
     } catch {
       // Mantém abertura da comanda mesmo se o refresh falhar.
     }
@@ -122,7 +139,7 @@ export default function ComandasPage() {
 
         <button
           type="button"
-          onClick={handleNovaComanda}
+          onClick={abrirModalNovaComanda}
           className={`w-full rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-colors touch-manipulation shadow-lg ${
             isMobile
               ? 'py-6 text-2xl min-h-[72px]'
@@ -141,7 +158,7 @@ export default function ComandasPage() {
           {!busca.trim() && (
             <button
               type="button"
-              onClick={handleNovaComanda}
+              onClick={abrirModalNovaComanda}
               className={`rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors touch-manipulation ${
                 isMobile ? 'px-8 py-4 text-xl' : 'px-6 py-3'
               }`}
@@ -164,6 +181,45 @@ export default function ComandasPage() {
               isMobile={isMobile}
             />
           ))}
+        </div>
+      )}
+
+      {mostrarModalNovaComanda && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white border-2 border-amber-200 p-6 shadow-xl">
+            <h3 className="text-xl font-bold text-amber-900 mb-4">Nova comanda</h3>
+            <label className="block text-sm font-medium text-amber-900 mb-2">
+              Número da comanda
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoFocus
+              value={numeroNovaComanda}
+              onChange={(e) => setNumeroNovaComanda(e.target.value.replace(/\D/g, ''))}
+              placeholder="Somente números"
+              className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none"
+            />
+            <p className="text-xs text-stone-500 mt-2">Aceita apenas números.</p>
+            <div className="mt-5 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={fecharModalNovaComanda}
+                className="px-4 py-2 rounded-lg bg-stone-200 text-stone-700 font-semibold hover:bg-stone-300"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCriarNovaComanda}
+                disabled={!numeroNovaComanda.trim()}
+                className="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 disabled:opacity-50"
+              >
+                Criar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
