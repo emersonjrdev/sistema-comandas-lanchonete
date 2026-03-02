@@ -121,6 +121,15 @@ function produtoEhFrios(produto) {
   return normalizarNomeProduto(produto?.nome) === normalizarNomeProduto('Frios')
 }
 
+function produtoEhFixo(produto) {
+  return produto?.fixo === true
+}
+
+function estoqueDisponivelParaVenda(produto) {
+  if (produtoEhFixo(produto)) return Number.MAX_SAFE_INTEGER
+  return Number(produto?.estoque ?? 0)
+}
+
 async function apagarColecao(colRef) {
   const tamanhoLote = 400
 
@@ -278,10 +287,11 @@ async function seedProdutosFixos() {
     const chave = normalizarNomeProduto(nomeFixo)
     const existente = mapaPorNome.get(chave)
     if (existente) {
-      if (existente.data.fixo !== true) {
+      if (existente.data.fixo !== true || Number(existente.data.estoque || 0) < 999999) {
         await existente.ref.set(
           {
             fixo: true,
+            estoque: Math.max(999999, Number(existente.data.estoque || 0)),
             updated_at: new Date().toISOString(),
           },
           { merge: true }
@@ -293,7 +303,7 @@ async function seedProdutosFixos() {
     await produtosCol.add({
       nome: nomeFixo,
       preco: 0,
-      estoque: 0,
+      estoque: 999999,
       fixo: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -526,8 +536,11 @@ app.get('/comandas/aguardando-pagamento', async (_, res) => {
 
 app.delete('/comandas/abertas', async (req, res) => {
   try {
-    const { operadorId } = req.body || {}
-    const operadorIdNorm = String(operadorId || '').trim()
+    const operadorIdRaw =
+      req.body?.operadorId ||
+      req.query?.operadorId ||
+      req.headers['x-operador-id']
+    const operadorIdNorm = String(operadorIdRaw || '').trim()
     if (!operadorIdNorm) return res.status(400).json({ error: 'operadorId é obrigatório' })
 
     const operadorDoc = await usuariosCol.doc(operadorIdNorm).get()
@@ -605,7 +618,9 @@ app.post('/comandas/:id/itens', async (req, res) => {
   if (isFrios && !tipoFrioFinal) {
     return res.status(400).json({ error: 'tipoFrio é obrigatório para produto Frios' })
   }
-  if ((produto.estoque ?? 0) < estoqueNecessario) return res.status(400).json({ error: 'Estoque insuficiente' })
+  if (estoqueDisponivelParaVenda(produto) < estoqueNecessario) {
+    return res.status(400).json({ error: 'Estoque insuficiente' })
+  }
 
   const subtotal = isFrios ? Number(produto.preco) * (pesoNum / 1000) : Number(produto.preco) * qtd
   const item = {
@@ -723,7 +738,7 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
     const produto = docToEntity(produtoDoc)
     const qtdNecessaria =
       item.unidadeMedida === 'gramas' ? Number(item.pesoGramas || 0) : Number(item.quantidade || 0)
-    if (Number(produto.estoque || 0) < qtdNecessaria) {
+    if (estoqueDisponivelParaVenda(produto) < qtdNecessaria) {
       return res.status(400).json({ error: 'Estoque insuficiente para confirmar pagamento' })
     }
   }
@@ -734,13 +749,15 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
     const produtoRef = produtosCol.doc(String(produtoId))
     const produtoDoc = await produtoRef.get()
     const produto = docToEntity(produtoDoc)
-    const qtdNecessaria =
-      item.unidadeMedida === 'gramas' ? Number(item.pesoGramas || 0) : Number(item.quantidade || 0)
-    const novoEstoque = Number(produto.estoque || 0) - qtdNecessaria
-    await produtoRef.update({
-      estoque: Math.max(0, novoEstoque),
-      updated_at: new Date().toISOString(),
-    })
+    if (!produtoEhFixo(produto)) {
+      const qtdNecessaria =
+        item.unidadeMedida === 'gramas' ? Number(item.pesoGramas || 0) : Number(item.quantidade || 0)
+      const novoEstoque = Number(produto.estoque || 0) - qtdNecessaria
+      await produtoRef.update({
+        estoque: Math.max(0, novoEstoque),
+        updated_at: new Date().toISOString(),
+      })
+    }
   }
 
   const caixaAtual = await getCaixaStatus()
@@ -1045,7 +1062,7 @@ app.post('/vendas/:id/itens', async (req, res) => {
   if (isFrios && !tipoFrioFinal) {
     return res.status(400).json({ error: 'tipoFrio é obrigatório para produto Frios' })
   }
-  if (Number(produto.estoque || 0) < estoqueNecessario) {
+  if (estoqueDisponivelParaVenda(produto) < estoqueNecessario) {
     return res.status(400).json({ error: 'Estoque insuficiente' })
   }
 
@@ -1078,10 +1095,12 @@ app.post('/vendas/:id/itens', async (req, res) => {
     updated_at: new Date().toISOString(),
   })
 
-  await produtoRef.update({
-    estoque: Math.max(0, Number(produto.estoque || 0) - estoqueNecessario),
-    updated_at: new Date().toISOString(),
-  })
+  if (!produtoEhFixo(produto)) {
+    await produtoRef.update({
+      estoque: Math.max(0, Number(produto.estoque || 0) - estoqueNecessario),
+      updated_at: new Date().toISOString(),
+    })
+  }
 
   const atualizada = await vendaRef.get()
   res.json(docToEntity(atualizada))
@@ -1101,7 +1120,7 @@ app.get('/dashboard/resumo', async (_, res) => {
 
   const produtosEstoqueBaixo = produtosSnap.docs
     .map((doc) => docToEntity(doc))
-    .filter((p) => Number(p.estoque || 0) < 5)
+    .filter((p) => p.fixo !== true && Number(p.estoque || 0) < 5)
     .sort((a, b) => Number(a.estoque || 0) - Number(b.estoque || 0))
   const estoqueBaixo = produtosEstoqueBaixo.length
 

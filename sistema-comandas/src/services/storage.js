@@ -100,9 +100,12 @@ export async function confirmarPagamento(comandaId, metodoPagamento, valorRecebi
 }
 
 export async function excluirComandasAbertas(operadorId) {
-  const result = await apiRequest('/comandas/abertas', {
+  const operadorIdNorm = String(operadorId || '').trim()
+  const query = operadorIdNorm ? `?operadorId=${encodeURIComponent(operadorIdNorm)}` : ''
+  const result = await apiRequest(`/comandas/abertas${query}`, {
     method: 'DELETE',
-    body: { operadorId },
+    body: operadorIdNorm ? { operadorId: operadorIdNorm } : {},
+    headers: operadorIdNorm ? { 'x-operador-id': operadorIdNorm } : {},
   })
   emitUpdate()
   return result

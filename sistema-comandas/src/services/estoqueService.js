@@ -11,7 +11,7 @@ export async function getProdutosComEstoque() {
 
 export async function getProdutosEstoqueBaixo(limite = 5) {
   const produtos = await getProdutosComEstoque()
-  return produtos.filter((p) => (p.estoque ?? 0) < limite)
+  return produtos.filter((p) => p.fixo !== true && (p.estoque ?? 0) < limite)
 }
 
 export async function decrementarEstoque(produtoId, quantidade) {
@@ -56,5 +56,6 @@ export async function setEstoque(produtoId, quantidade) {
 export async function temEstoque(produtoId, quantidade = 1) {
   const produtos = await getProdutosComEstoque()
   const p = produtos.find((x) => String(x.id) === String(produtoId))
+  if (p?.fixo === true) return true
   return (p?.estoque ?? 0) >= quantidade
 }

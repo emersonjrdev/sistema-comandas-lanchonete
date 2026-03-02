@@ -96,10 +96,9 @@ export default function Caixa() {
     [vendasHoje]
   )
 
-  const produtosComEstoque = useMemo(
+  const produtosOrdenados = useMemo(
     () =>
       produtos
-        .filter((p) => Number(p.estoque ?? 0) >= 1)
         .sort((a, b) =>
           String(a?.nome || '').localeCompare(String(b?.nome || ''), 'pt-BR', {
             sensitivity: 'base',
@@ -731,9 +730,9 @@ export default function Caixa() {
                         className="px-3 py-2 rounded-lg border-2 border-amber-200"
                       >
                         <option value="">Produto...</option>
-                        {produtosComEstoque.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nome} - R$ {p.preco?.toFixed(2)}
+                        {produtosOrdenados.map((p) => (
+                          <option key={p.id} value={p.id} disabled={p.fixo !== true && Number(p.estoque ?? 0) < 1}>
+                            {p.nome} - R$ {p.preco?.toFixed(2)} {p.fixo === true ? '(estoque infinito)' : Number(p.estoque ?? 0) < 1 ? '(sem estoque)' : ''}
                           </option>
                         ))}
                       </select>
@@ -866,9 +865,9 @@ export default function Caixa() {
                       className="px-3 py-2 rounded-lg border-2 border-amber-200"
                     >
                       <option value="">Produto...</option>
-                      {produtosComEstoque.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nome} - R$ {p.preco?.toFixed(2)}
+                      {produtosOrdenados.map((p) => (
+                        <option key={p.id} value={p.id} disabled={p.fixo !== true && Number(p.estoque ?? 0) < 1}>
+                          {p.nome} - R$ {p.preco?.toFixed(2)} {p.fixo === true ? '(estoque infinito)' : Number(p.estoque ?? 0) < 1 ? '(sem estoque)' : ''}
                         </option>
                       ))}
                     </select>

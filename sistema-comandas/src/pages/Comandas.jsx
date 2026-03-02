@@ -5,12 +5,14 @@ import { criarComanda, excluirComandasAbertas } from '../services/storage'
 import { useComandas, useProdutos } from '../hooks/usePDV'
 import { useIsMobile } from '../hooks/useResponsive'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 import { playSomAcao, playSomErro } from '../utils/sons'
 
 export default function ComandasPage() {
   const [comandas, refreshComandas] = useComandas()
   const [produtos] = useProdutos()
   const { usuario, isAdmin } = useAuth()
+  const toast = useToast()
   const [comandaSelecionada, setComandaSelecionada] = useState(null)
   const [mostrarModalNovaComanda, setMostrarModalNovaComanda] = useState(false)
   const [numeroNovaComanda, setNumeroNovaComanda] = useState('')
@@ -114,11 +116,14 @@ export default function ComandasPage() {
         playSomAcao()
         setComandaSelecionada(null)
         await refreshComandas()
+        toast.show(`Comandas abertas removidas: ${Number(result.removidas || 0)}`)
       } else {
         playSomErro()
+        toast.show('Não foi possível excluir as comandas abertas', 'error')
       }
-    } catch {
+    } catch (error) {
       playSomErro()
+      toast.show(error?.message || 'Erro ao excluir comandas abertas', 'error')
     }
   }
 

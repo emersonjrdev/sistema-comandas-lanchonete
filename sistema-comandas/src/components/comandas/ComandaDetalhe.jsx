@@ -38,10 +38,9 @@ export default function ComandaDetalhe({
     return Number(produto?.estoque ?? 0)
   }
 
-  const produtosComEstoque = useMemo(
+  const produtosOrdenados = useMemo(
     () =>
       produtos
-        .filter((p) => estoqueDisponivel(p.id) >= 1)
         .sort((a, b) =>
           String(a?.nome || '').localeCompare(String(b?.nome || ''), 'pt-BR', {
             sensitivity: 'base',
@@ -166,12 +165,12 @@ export default function ComandaDetalhe({
                   className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
                 >
                   <option value="">Selecione...</option>
-                  {produtosComEstoque.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nome} - R$ {Number(p.preco).toFixed(2)}
+                  {produtosOrdenados.map((p) => (
+                    <option key={p.id} value={p.id} disabled={p.fixo !== true && estoqueDisponivel(p.id) < 1}>
+                      {p.nome} - R$ {Number(p.preco).toFixed(2)} {p.fixo === true ? '(estoque infinito)' : estoqueDisponivel(p.id) < 1 ? '(sem estoque)' : ''}
                     </option>
                   ))}
-                  {produtosComEstoque.length === 0 && (
+                  {produtosOrdenados.length === 0 && (
                     <option value="" disabled>Nenhum produto com estoque</option>
                   )}
                 </select>
