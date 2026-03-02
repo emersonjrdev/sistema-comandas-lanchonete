@@ -578,10 +578,15 @@ app.post('/comandas', async (req, res) => {
   if (!/^\d+$/.test(numero)) {
     return res.status(400).json({ error: 'numeroComanda deve conter apenas números' })
   }
-  const identificacao = `Comanda ${numero}`
+  const numeroInt = Number.parseInt(numero, 10)
+  if (!Number.isFinite(numeroInt) || numeroInt < 1 || numeroInt > 100) {
+    return res.status(400).json({ error: 'numeroComanda deve estar entre 1 e 100' })
+  }
+  const numeroFormatado = String(numeroInt).padStart(3, '0')
+  const identificacao = `Comanda ${numeroFormatado}`
 
   const nova = {
-    numero_comanda: numero,
+    numero_comanda: numeroFormatado,
     cliente: null,
     identificacao,
     status: 'aberta',

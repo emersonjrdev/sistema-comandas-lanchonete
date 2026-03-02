@@ -57,8 +57,15 @@ export default function ComandasPage() {
       playSomErro()
       return
     }
+    const numeroInt = Number.parseInt(numeroComanda, 10)
+    if (!Number.isFinite(numeroInt) || numeroInt < 1 || numeroInt > 100) {
+      playSomErro()
+      toast.show('Número da comanda deve estar entre 1 e 100', 'error')
+      return
+    }
 
-    const nova = await criarComanda(numeroComanda)
+    const numeroFormatado = String(numeroInt).padStart(3, '0')
+    const nova = await criarComanda(numeroFormatado)
     if (!nova) {
       playSomErro()
       return
@@ -241,10 +248,10 @@ export default function ComandasPage() {
               autoFocus
               value={numeroNovaComanda}
               onChange={(e) => setNumeroNovaComanda(e.target.value.replace(/\D/g, ''))}
-              placeholder="Somente números"
+              placeholder="001 a 100"
               className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none"
             />
-            <p className="text-xs text-stone-500 mt-2">Aceita apenas números.</p>
+            <p className="text-xs text-stone-500 mt-2">Aceita apenas números de 1 até 100.</p>
             <div className="mt-5 flex gap-2 justify-end">
               <button
                 type="button"
