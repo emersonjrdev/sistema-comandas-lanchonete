@@ -622,7 +622,7 @@ app.post('/comandas/:id/itens', async (req, res) => {
     return res.status(400).json({ error: 'Estoque insuficiente' })
   }
 
-  const subtotal = isFrios ? Number(produto.preco) * (pesoNum / 1000) : Number(produto.preco) * qtd
+  const subtotal = isFrios ? Number(produto.preco) * (pesoNum / 100) : Number(produto.preco) * qtd
   const item = {
     id: gerarId(),
     produto_id: produto.id,
@@ -1076,7 +1076,7 @@ app.post('/vendas/:id/itens', async (req, res) => {
     unidadeMedida: isFrios ? 'gramas' : 'unidade',
     pesoGramas: isFrios ? pesoNum : null,
     tipoFrio: isFrios ? tipoFrioFinal : null,
-    subtotal: isFrios ? Number(produto.preco || 0) * (pesoNum / 1000) : Number(produto.preco || 0) * qtd,
+    subtotal: isFrios ? Number(produto.preco || 0) * (pesoNum / 100) : Number(produto.preco || 0) * qtd,
     created_at: new Date().toISOString(),
   }
 
