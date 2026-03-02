@@ -51,7 +51,7 @@ const vendasCol = db.collection('vendas')
 const fechamentosCol = db.collection('caixa_fechamentos')
 const caixaConfigRef = db.collection('config').doc('caixa')
 const caixasCol = db.collection('caixas')
-const PRODUTOS_FIXOS = ['Pão', 'Frios', 'Bolos']
+const PRODUTOS_FIXOS = ['Pão Francês', 'Frios', 'Bolos']
 
 function gerarId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -115,6 +115,10 @@ function normalizarNomeProduto(valor) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
+}
+
+function produtoEhFrios(produto) {
+  return normalizarNomeProduto(produto?.nome) === normalizarNomeProduto('Frios')
 }
 
 async function apagarColecao(colRef) {
@@ -195,6 +199,35 @@ async function apagarCaixasComSangrias() {
   }
 }
 
+async function resetarComandasParaNovoDia() {
+  const tamanhoLote = 400
+  let totalResetadas = 0
+
+  while (true) {
+    const snap = await comandasCol.limit(tamanhoLote).get()
+    if (snap.empty) break
+
+    const lote = db.batch()
+    for (const doc of snap.docs) {
+      lote.set(
+        doc.ref,
+        {
+          status: 'aberta',
+          itens: [],
+          total: 0,
+          enviadaEm: null,
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true }
+      )
+    }
+    await lote.commit()
+    totalResetadas += snap.size
+  }
+
+  return totalResetadas
+}
+
 async function getCaixaStatus() {
   const snap = await caixaConfigRef.get()
   if (!snap.exists) {
@@ -220,6 +253,26 @@ async function seedProdutosFixos() {
   const mapaPorNome = new Map(
     existentes.map((item) => [normalizarNomeProduto(item.data.nome), item])
   )
+
+  const chavePaoAntigo = normalizarNomeProduto('Pão')
+  const chavePaoNovo = normalizarNomeProduto('Pão Francês')
+  const paoAntigo = mapaPorNome.get(chavePaoAntigo)
+  const paoNovo = mapaPorNome.get(chavePaoNovo)
+  if (paoAntigo && !paoNovo) {
+    await paoAntigo.ref.set(
+      {
+        nome: 'Pão Francês',
+        fixo: true,
+        updated_at: new Date().toISOString(),
+      },
+      { merge: true }
+    )
+    mapaPorNome.delete(chavePaoAntigo)
+    mapaPorNome.set(chavePaoNovo, {
+      ref: paoAntigo.ref,
+      data: { ...(paoAntigo.data || {}), nome: 'Pão Francês', fixo: true },
+    })
+  }
 
   for (const nomeFixo of PRODUTOS_FIXOS) {
     const chave = normalizarNomeProduto(nomeFixo)
@@ -471,6 +524,34 @@ app.get('/comandas/aguardando-pagamento', async (_, res) => {
   res.json(payload)
 })
 
+app.delete('/comandas/abertas', async (req, res) => {
+  try {
+    const { operadorId } = req.body || {}
+    const operadorIdNorm = String(operadorId || '').trim()
+    if (!operadorIdNorm) return res.status(400).json({ error: 'operadorId é obrigatório' })
+
+    const operadorDoc = await usuariosCol.doc(operadorIdNorm).get()
+    if (!operadorDoc.exists) return res.status(403).json({ error: 'Operador inválido' })
+    const operador = docToEntity(operadorDoc)
+    if (String(operador.perfil || '') !== 'admin') {
+      return res.status(403).json({ error: 'Apenas admin pode excluir comandas abertas' })
+    }
+
+    const snap = await comandasCol.where('status', '==', 'aberta').get()
+    if (snap.empty) return res.json({ sucesso: true, removidas: 0 })
+
+    const lote = db.batch()
+    for (const doc of snap.docs) {
+      lote.delete(doc.ref)
+    }
+    await lote.commit()
+
+    return res.json({ sucesso: true, removidas: snap.size })
+  } catch (error) {
+    return res.status(500).json({ sucesso: false, error: error.message || 'Falha ao excluir comandas abertas' })
+  }
+})
+
 app.post('/comandas', async (req, res) => {
   const payload = req.body || {}
   const numeroBruto =
@@ -502,7 +583,7 @@ app.post('/comandas', async (req, res) => {
 
 app.post('/comandas/:id/itens', async (req, res) => {
   const comandaId = String(req.params.id)
-  const { produtoId, quantidade = 1 } = req.body || {}
+  const { produtoId, quantidade = 1, pesoGramas, tipoFrio } = req.body || {}
 
   const comandaRef = comandasCol.doc(comandaId)
   const comandaDoc = await comandaRef.get()
@@ -516,17 +597,27 @@ app.post('/comandas/:id/itens', async (req, res) => {
   if (!produtoDoc.exists) return res.status(404).json({ error: 'Produto não encontrado' })
   const produto = docToEntity(produtoDoc)
 
+  const isFrios = produtoEhFrios(produto)
   const qtd = Math.max(1, Number(quantidade) || 1)
-  if ((produto.estoque ?? 0) < qtd) return res.status(400).json({ error: 'Estoque insuficiente' })
+  const pesoNum = Math.max(1, Number(pesoGramas) || 0)
+  const tipoFrioFinal = String(tipoFrio || '').trim()
+  const estoqueNecessario = isFrios ? pesoNum : qtd
+  if (isFrios && !tipoFrioFinal) {
+    return res.status(400).json({ error: 'tipoFrio é obrigatório para produto Frios' })
+  }
+  if ((produto.estoque ?? 0) < estoqueNecessario) return res.status(400).json({ error: 'Estoque insuficiente' })
 
-  const subtotal = Number(produto.preco) * qtd
+  const subtotal = isFrios ? Number(produto.preco) * (pesoNum / 1000) : Number(produto.preco) * qtd
   const item = {
     id: gerarId(),
     produto_id: produto.id,
     produtoId: produto.id,
-    nome: produto.nome,
+    nome: isFrios ? `${produto.nome} - ${tipoFrioFinal}` : produto.nome,
     preco: Number(produto.preco),
-    quantidade: qtd,
+    quantidade: isFrios ? 1 : qtd,
+    unidadeMedida: isFrios ? 'gramas' : 'unidade',
+    pesoGramas: isFrios ? pesoNum : null,
+    tipoFrio: isFrios ? tipoFrioFinal : null,
     subtotal,
     created_at: new Date().toISOString(),
   }
@@ -630,7 +721,9 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
     const produtoDoc = await produtosCol.doc(String(produtoId)).get()
     if (!produtoDoc.exists) return res.status(404).json({ error: `Produto ${produtoId} não encontrado` })
     const produto = docToEntity(produtoDoc)
-    if (Number(produto.estoque || 0) < Number(item.quantidade || 0)) {
+    const qtdNecessaria =
+      item.unidadeMedida === 'gramas' ? Number(item.pesoGramas || 0) : Number(item.quantidade || 0)
+    if (Number(produto.estoque || 0) < qtdNecessaria) {
       return res.status(400).json({ error: 'Estoque insuficiente para confirmar pagamento' })
     }
   }
@@ -641,7 +734,9 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
     const produtoRef = produtosCol.doc(String(produtoId))
     const produtoDoc = await produtoRef.get()
     const produto = docToEntity(produtoDoc)
-    const novoEstoque = Number(produto.estoque || 0) - Number(item.quantidade || 0)
+    const qtdNecessaria =
+      item.unidadeMedida === 'gramas' ? Number(item.pesoGramas || 0) : Number(item.quantidade || 0)
+    const novoEstoque = Number(produto.estoque || 0) - qtdNecessaria
     await produtoRef.update({
       estoque: Math.max(0, novoEstoque),
       updated_at: new Date().toISOString(),
@@ -663,10 +758,11 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
 
   const vendaRef = await vendasCol.add(venda)
   await comandaRef.update({
-    status: 'aberta',
+    status: 'fechada',
     itens: [],
     total: 0,
     enviadaEm: null,
+    fechamentoEm: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   })
 
@@ -783,8 +879,10 @@ app.post('/caixa/fechar', async (req, res) => {
     { merge: true }
   )
 
+  const comandasResetadas = await resetarComandasParaNovoDia()
+
   const fechamentoDoc = await fechamentoRef.get()
-  res.json({ sucesso: true, fechamento: docToEntity(fechamentoDoc) })
+  res.json({ sucesso: true, fechamento: docToEntity(fechamentoDoc), comandasResetadas })
 })
 
 app.get('/caixa/relatorios', async (_, res) => {
@@ -927,7 +1025,7 @@ app.delete('/caixa/dados', async (_, res) => {
 
 app.post('/vendas/:id/itens', async (req, res) => {
   const { id } = req.params
-  const { produtoId, quantidade = 1 } = req.body || {}
+  const { produtoId, quantidade = 1, pesoGramas, tipoFrio } = req.body || {}
 
   const vendaRef = vendasCol.doc(String(id))
   const vendaDoc = await vendaRef.get()
@@ -939,8 +1037,15 @@ app.post('/vendas/:id/itens', async (req, res) => {
   if (!produtoDoc.exists) return res.status(404).json({ error: 'Produto não encontrado' })
   const produto = docToEntity(produtoDoc)
 
+  const isFrios = produtoEhFrios(produto)
   const qtd = Math.max(1, Number(quantidade) || 1)
-  if (Number(produto.estoque || 0) < qtd) {
+  const pesoNum = Math.max(1, Number(pesoGramas) || 0)
+  const tipoFrioFinal = String(tipoFrio || '').trim()
+  const estoqueNecessario = isFrios ? pesoNum : qtd
+  if (isFrios && !tipoFrioFinal) {
+    return res.status(400).json({ error: 'tipoFrio é obrigatório para produto Frios' })
+  }
+  if (Number(produto.estoque || 0) < estoqueNecessario) {
     return res.status(400).json({ error: 'Estoque insuficiente' })
   }
 
@@ -948,10 +1053,13 @@ app.post('/vendas/:id/itens', async (req, res) => {
     id: gerarId(),
     produto_id: produto.id,
     produtoId: produto.id,
-    nome: produto.nome,
+    nome: isFrios ? `${produto.nome} - ${tipoFrioFinal}` : produto.nome,
     preco: Number(produto.preco || 0),
-    quantidade: qtd,
-    subtotal: Number(produto.preco || 0) * qtd,
+    quantidade: isFrios ? 1 : qtd,
+    unidadeMedida: isFrios ? 'gramas' : 'unidade',
+    pesoGramas: isFrios ? pesoNum : null,
+    tipoFrio: isFrios ? tipoFrioFinal : null,
+    subtotal: isFrios ? Number(produto.preco || 0) * (pesoNum / 1000) : Number(produto.preco || 0) * qtd,
     created_at: new Date().toISOString(),
   }
 
@@ -971,7 +1079,7 @@ app.post('/vendas/:id/itens', async (req, res) => {
   })
 
   await produtoRef.update({
-    estoque: Math.max(0, Number(produto.estoque || 0) - qtd),
+    estoque: Math.max(0, Number(produto.estoque || 0) - estoqueNecessario),
     updated_at: new Date().toISOString(),
   })
 

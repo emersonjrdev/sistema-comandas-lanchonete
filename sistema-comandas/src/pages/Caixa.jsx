@@ -37,6 +37,13 @@ function isHoje(dataStr) {
   )
 }
 
+function formatarQuantidadeItem(item) {
+  if (item?.unidadeMedida === 'gramas') {
+    return `${Number(item.pesoGramas || 0)}g`
+  }
+  return `${Number(item?.quantidade || 0)}x`
+}
+
 export default function Caixa() {
   const [
     vendas,
@@ -65,8 +72,14 @@ export default function Caixa() {
   const [vendaAdicionarItem, setVendaAdicionarItem] = useState(null)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState('1')
+  const [tipoFrioVenda, setTipoFrioVenda] = useState('Presunto')
+  const [pesoFrioVendaInput, setPesoFrioVendaInput] = useState('100')
+  const [pesoFrioVendaUnidade, setPesoFrioVendaUnidade] = useState('g')
   const [produtoComandaSelecionado, setProdutoComandaSelecionado] = useState('')
   const [quantidadeComanda, setQuantidadeComanda] = useState('1')
+  const [tipoFrioComanda, setTipoFrioComanda] = useState('Presunto')
+  const [pesoFrioComandaInput, setPesoFrioComandaInput] = useState('100')
+  const [pesoFrioComandaUnidade, setPesoFrioComandaUnidade] = useState('g')
   const [valorSangria, setValorSangria] = useState('')
   const [motivoSangria, setMotivoSangria] = useState('')
   const [registrandoSangria, setRegistrandoSangria] = useState(false)
@@ -94,6 +107,19 @@ export default function Caixa() {
         ),
     [produtos]
   )
+  const tiposFrios = ['Presunto', 'Queijo', 'Mortadela', 'Peito de Peru', 'Salame']
+  const produtoComandaObj = produtos.find((p) => String(p.id) === String(produtoComandaSelecionado))
+  const produtoVendaObj = produtos.find((p) => String(p.id) === String(produtoSelecionado))
+  const comandaEhFrios =
+    String(produtoComandaObj?.nome || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase() === 'frios'
+  const vendaEhFrios =
+    String(produtoVendaObj?.nome || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase() === 'frios'
   const comandaEmEdicao = useMemo(
     () => comandasPendentes.find((comanda) => comanda.id === comandaEdicaoId) || null,
     [comandasPendentes, comandaEdicaoId]
@@ -241,19 +267,28 @@ export default function Caixa() {
   async function handleAdicionarItemVenda() {
     if (!vendaAdicionarItem || !produtoSelecionado) return
     const quantidadeNum = quantidadeParaNumero(quantidade)
+    const pesoBase = Math.max(1, parseFloat(String(pesoFrioVendaInput || '').replace(',', '.')) || 0)
+    const pesoGramas = pesoFrioVendaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
+    const estoqueNecessario = vendaEhFrios ? pesoGramas : quantidadeNum
     const produto = produtos.find((p) => String(p.id) === String(produtoSelecionado))
-    if (Number(produto?.estoque ?? 0) < quantidadeNum) {
+    if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
-    const venda = await adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, quantidadeNum)
+    const payload = vendaEhFrios
+      ? { pesoGramas, tipoFrio: tipoFrioVenda }
+      : { quantidade: quantidadeNum }
+    const venda = await adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, payload)
     if (venda) {
       playSomVenda()
       await refresh()
       setVendaAdicionarItem(null)
       setProdutoSelecionado('')
       setQuantidade('1')
+      setTipoFrioVenda('Presunto')
+      setPesoFrioVendaInput('100')
+      setPesoFrioVendaUnidade('g')
       toast.show('Item adicionado à venda!')
     } else {
       playSomErro()
@@ -265,28 +300,40 @@ export default function Caixa() {
     setComandaEdicaoId(null)
     setProdutoComandaSelecionado('')
     setQuantidadeComanda('1')
+    setTipoFrioComanda('Presunto')
+    setPesoFrioComandaInput('100')
+    setPesoFrioComandaUnidade('g')
   }
 
   async function handleAdicionarItemComanda() {
     if (!comandaEdicaoId || !produtoComandaSelecionado) return
     const quantidadeComandaNum = quantidadeParaNumero(quantidadeComanda)
+    const pesoBase = Math.max(1, parseFloat(String(pesoFrioComandaInput || '').replace(',', '.')) || 0)
+    const pesoGramas = pesoFrioComandaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
+    const estoqueNecessario = comandaEhFrios ? pesoGramas : quantidadeComandaNum
     const produto = produtos.find((p) => String(p.id) === String(produtoComandaSelecionado))
-    if (Number(produto?.estoque ?? 0) < quantidadeComandaNum) {
+    if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
 
+    const payload = comandaEhFrios
+      ? { pesoGramas, tipoFrio: tipoFrioComanda }
+      : { quantidade: quantidadeComandaNum }
     const comandaAtualizada = await adicionarItem(
       comandaEdicaoId,
       produtoComandaSelecionado,
-      quantidadeComandaNum
+      payload
     )
     if (comandaAtualizada) {
       playSomVenda()
       await refresh()
       setProdutoComandaSelecionado('')
       setQuantidadeComanda('1')
+      setTipoFrioComanda('Presunto')
+      setPesoFrioComandaInput('100')
+      setPesoFrioComandaUnidade('g')
       toast.show('Item adicionado ao pedido!')
     } else {
       playSomErro()
@@ -612,7 +659,7 @@ export default function Caixa() {
                     <ul className="mt-2 text-sm text-stone-600 space-y-0.5">
                       {comanda.itens.slice(0, 3).map((item) => (
                         <li key={item.id}>
-                          {item.quantidade}x {item.nome}
+                          {formatarQuantidadeItem(item)} {item.nome}
                         </li>
                       ))}
                       {comanda.itens.length > 3 && (
@@ -637,6 +684,9 @@ export default function Caixa() {
                       setComandaEdicaoId(comanda.id)
                       setProdutoComandaSelecionado('')
                       setQuantidadeComanda('1')
+                      setTipoFrioComanda('Presunto')
+                      setPesoFrioComandaInput('100')
+                      setPesoFrioComandaUnidade('g')
                     }}
                     className="px-4 py-3 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700"
                   >
@@ -696,6 +746,38 @@ export default function Caixa() {
                         onBlur={() => setQuantidadeComanda(String(quantidadeParaNumero(quantidadeComanda)))}
                         className="w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
                       />
+                      {comandaEhFrios && (
+                        <>
+                          <select
+                            value={tipoFrioComanda}
+                            onChange={(e) => setTipoFrioComanda(e.target.value)}
+                            className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                          >
+                            {tiposFrios.map((tipo) => (
+                              <option key={tipo} value={tipo}>
+                                {tipo}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={pesoFrioComandaInput}
+                            onChange={(e) =>
+                              setPesoFrioComandaInput(e.target.value.replace(/[^\d,.]/g, ''))
+                            }
+                            className="w-24 px-3 py-2 rounded-lg border-2 border-amber-200"
+                          />
+                          <select
+                            value={pesoFrioComandaUnidade}
+                            onChange={(e) => setPesoFrioComandaUnidade(e.target.value)}
+                            className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                          >
+                            <option value="g">g</option>
+                            <option value="kg">kg</option>
+                          </select>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={handleAdicionarItemComanda}
@@ -763,7 +845,7 @@ export default function Caixa() {
                   {venda.itens.map((item) => (
                     <li key={item.id} className="flex justify-between gap-2">
                       <span>
-                        {item.quantidade}x {item.nome}
+                        {formatarQuantidadeItem(item)} {item.nome}
                       </span>
                       <span className="tabular-nums">
                         R${' '}
@@ -799,6 +881,36 @@ export default function Caixa() {
                       onBlur={() => setQuantidade(String(quantidadeParaNumero(quantidade)))}
                       className="w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
                     />
+                    {vendaEhFrios && (
+                      <>
+                        <select
+                          value={tipoFrioVenda}
+                          onChange={(e) => setTipoFrioVenda(e.target.value)}
+                          className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                        >
+                          {tiposFrios.map((tipo) => (
+                            <option key={tipo} value={tipo}>
+                              {tipo}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={pesoFrioVendaInput}
+                          onChange={(e) => setPesoFrioVendaInput(e.target.value.replace(/[^\d,.]/g, ''))}
+                          className="w-24 px-3 py-2 rounded-lg border-2 border-amber-200"
+                        />
+                        <select
+                          value={pesoFrioVendaUnidade}
+                          onChange={(e) => setPesoFrioVendaUnidade(e.target.value)}
+                          className="px-3 py-2 rounded-lg border-2 border-amber-200"
+                        >
+                          <option value="g">g</option>
+                          <option value="kg">kg</option>
+                        </select>
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={handleAdicionarItemVenda}
@@ -813,6 +925,9 @@ export default function Caixa() {
                         setVendaAdicionarItem(null)
                         setProdutoSelecionado('')
                         setQuantidade('1')
+                        setTipoFrioVenda('Presunto')
+                        setPesoFrioVendaInput('100')
+                        setPesoFrioVendaUnidade('g')
                       }}
                       className="px-4 py-2 rounded-lg bg-stone-200"
                     >

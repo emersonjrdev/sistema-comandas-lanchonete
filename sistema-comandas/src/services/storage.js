@@ -48,10 +48,14 @@ export async function criarComanda(numeroComanda) {
   return result
 }
 
-export async function adicionarItem(comandaId, produtoId, quantidade) {
+export async function adicionarItem(comandaId, produtoId, payload = {}) {
+  const body =
+    typeof payload === 'number'
+      ? { produtoId, quantidade: payload }
+      : { produtoId, ...(payload || {}) }
   const result = await apiRequest(`/comandas/${comandaId}/itens`, {
     method: 'POST',
-    body: { produtoId, quantidade },
+    body,
   })
   emitUpdate()
   return result
@@ -95,6 +99,15 @@ export async function confirmarPagamento(comandaId, metodoPagamento, valorRecebi
   return result
 }
 
+export async function excluirComandasAbertas(operadorId) {
+  const result = await apiRequest('/comandas/abertas', {
+    method: 'DELETE',
+    body: { operadorId },
+  })
+  emitUpdate()
+  return result
+}
+
 // --- Vendas, caixa e dashboard ---
 
 export async function getVendasHoje() {
@@ -110,10 +123,14 @@ export async function getCaixaHistorico() {
   return apiRequest('/caixa/historico')
 }
 
-export async function adicionarItemAVenda(vendaId, produtoId, quantidade) {
+export async function adicionarItemAVenda(vendaId, produtoId, payload = {}) {
+  const body =
+    typeof payload === 'number'
+      ? { produtoId, quantidade: payload }
+      : { produtoId, ...(payload || {}) }
   const result = await apiRequest(`/vendas/${vendaId}/itens`, {
     method: 'POST',
-    body: { produtoId, quantidade },
+    body,
   })
   emitUpdate()
   return result

@@ -1,5 +1,6 @@
 export default function ItemRow({ item, onQuantidadeChange, onRemover }) {
   const subtotal = item.subtotal ?? item.preco * item.quantidade
+  const itemPorPeso = item.unidadeMedida === 'gramas'
 
   return (
     <div className="flex items-center gap-4 py-3 px-4 bg-white rounded-lg border border-amber-200/60 hover:border-amber-300 transition-colors">
@@ -10,26 +11,34 @@ export default function ItemRow({ item, onQuantidadeChange, onRemover }) {
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={() => onQuantidadeChange(item.id, item.quantidade - 1)}
-          disabled={item.quantidade <= 1}
-          className="w-10 h-10 rounded-lg bg-amber-100 text-amber-800 font-bold text-lg disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation hover:bg-amber-200 transition-colors"
-          aria-label="Diminuir quantidade"
-        >
-          −
-        </button>
-        <span className="w-12 text-center font-mono font-bold text-amber-900 tabular-nums">
-          {item.quantidade}
-        </span>
-        <button
-          type="button"
-          onClick={() => onQuantidadeChange(item.id, item.quantidade + 1)}
-          className="w-10 h-10 rounded-lg bg-amber-100 text-amber-800 font-bold text-lg touch-manipulation hover:bg-amber-200 transition-colors"
-          aria-label="Aumentar quantidade"
-        >
-          +
-        </button>
+        {itemPorPeso ? (
+          <span className="px-3 py-1 rounded-lg bg-amber-100 text-amber-900 font-mono font-bold tabular-nums">
+            {Number(item.pesoGramas || 0)}g
+          </span>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => onQuantidadeChange(item.id, item.quantidade - 1)}
+              disabled={item.quantidade <= 1}
+              className="w-10 h-10 rounded-lg bg-amber-100 text-amber-800 font-bold text-lg disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation hover:bg-amber-200 transition-colors"
+              aria-label="Diminuir quantidade"
+            >
+              −
+            </button>
+            <span className="w-12 text-center font-mono font-bold text-amber-900 tabular-nums">
+              {item.quantidade}
+            </span>
+            <button
+              type="button"
+              onClick={() => onQuantidadeChange(item.id, item.quantidade + 1)}
+              className="w-10 h-10 rounded-lg bg-amber-100 text-amber-800 font-bold text-lg touch-manipulation hover:bg-amber-200 transition-colors"
+              aria-label="Aumentar quantidade"
+            >
+              +
+            </button>
+          </>
+        )}
       </div>
       <p className="w-24 text-right font-bold text-amber-900 tabular-nums">
         R$ {subtotal.toFixed(2)}

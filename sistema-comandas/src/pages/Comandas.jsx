@@ -1,14 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import ComandaCard from '../components/comandas/ComandaCard'
 import ComandaDetalhe from '../components/comandas/ComandaDetalhe'
-import { criarComanda } from '../services/storage'
+import { criarComanda, excluirComandasAbertas } from '../services/storage'
 import { useComandas, useProdutos } from '../hooks/usePDV'
 import { useIsMobile } from '../hooks/useResponsive'
+import { useAuth } from '../contexts/AuthContext'
 import { playSomAcao, playSomErro } from '../utils/sons'
 
 export default function ComandasPage() {
   const [comandas, refreshComandas] = useComandas()
   const [produtos] = useProdutos()
+  const { usuario, isAdmin } = useAuth()
   const [comandaSelecionada, setComandaSelecionada] = useState(null)
   const [mostrarModalNovaComanda, setMostrarModalNovaComanda] = useState(false)
   const [numeroNovaComanda, setNumeroNovaComanda] = useState('')
@@ -98,6 +100,28 @@ export default function ComandasPage() {
     setComandaSelecionada(null)
   }
 
+  async function handleExcluirComandasAbertas() {
+    if (!isAdmin) return
+
+    const confirmou = window.confirm('Excluir TODAS as comandas abertas agora?')
+    if (!confirmou) return
+    const confirmouNovamente = window.confirm('Confirma esta exclusão? Esta ação não pode ser desfeita.')
+    if (!confirmouNovamente) return
+
+    try {
+      const result = await excluirComandasAbertas(usuario?.id)
+      if (result?.sucesso) {
+        playSomAcao()
+        setComandaSelecionada(null)
+        await refreshComandas()
+      } else {
+        playSomErro()
+      }
+    } catch {
+      playSomErro()
+    }
+  }
+
 
   const paddingClass = isMobile ? 'p-4 pb-24' : 'p-6'
 
@@ -148,6 +172,20 @@ export default function ComandasPage() {
         >
           + Nova Comanda
         </button>
+
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={handleExcluirComandasAbertas}
+            className={`w-full rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors touch-manipulation shadow-lg ${
+              isMobile
+                ? 'py-5 text-xl min-h-[64px]'
+                : 'px-6 py-3 text-base min-h-[48px]'
+            }`}
+          >
+            Excluir comandas abertas (admin)
+          </button>
+        )}
       </div>
 
       {comandasFiltradas.length === 0 ? (

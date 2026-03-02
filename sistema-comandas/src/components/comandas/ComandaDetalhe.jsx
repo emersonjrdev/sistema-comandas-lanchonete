@@ -20,7 +20,11 @@ export default function ComandaDetalhe({
   const [mostrarAdicionar, setMostrarAdicionar] = useState(isMobile)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState('1')
+  const [tipoFrio, setTipoFrio] = useState('Presunto')
+  const [pesoFrioInput, setPesoFrioInput] = useState('100')
+  const [pesoFrioUnidade, setPesoFrioUnidade] = useState('g')
   const toast = useToast()
+  const tiposFrios = ['Presunto', 'Queijo', 'Mortadela', 'Peito de Peru', 'Salame']
 
   const total =
     comanda.total ??
@@ -45,6 +49,12 @@ export default function ComandaDetalhe({
         ),
     [produtos]
   )
+  const produtoSelecionadoObj = produtos.find((p) => String(p.id) === String(produtoSelecionado))
+  const selecionadoEhFrios =
+    String(produtoSelecionadoObj?.nome || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase() === 'frios'
 
   useEffect(() => {
     if (isMobile) {
@@ -55,19 +65,28 @@ export default function ComandaDetalhe({
   async function handleAdicionarProduto() {
     if (!produtoSelecionado) return
     const quantidadeNum = Math.max(1, parseInt(quantidade, 10) || 1)
+    const pesoBase = Math.max(1, parseFloat(String(pesoFrioInput || '').replace(',', '.')) || 0)
+    const pesoGramas = pesoFrioUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
+    const estoqueNecessario = selecionadoEhFrios ? pesoGramas : quantidadeNum
 
-    if (estoqueDisponivel(produtoSelecionado) < quantidadeNum) {
+    if (estoqueDisponivel(produtoSelecionado) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente para este produto', 'error')
       return
     }
 
-    const atualizada = await adicionarItem(comanda.id, produtoSelecionado, quantidadeNum)
+    const payload = selecionadoEhFrios
+      ? { pesoGramas, tipoFrio }
+      : { quantidade: quantidadeNum }
+    const atualizada = await adicionarItem(comanda.id, produtoSelecionado, payload)
     if (atualizada) {
       playSomAcao()
       onComandaAtualizada(atualizada)
       setProdutoSelecionado('')
       setQuantidade('1')
+      setTipoFrio('Presunto')
+      setPesoFrioInput('100')
+      setPesoFrioUnidade('g')
       setMostrarAdicionar(!isMobile) // no mobile continua aberto
     } else {
       playSomErro()
@@ -157,23 +176,57 @@ export default function ComandaDetalhe({
                   )}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-900 mb-1">
-                  Quantidade
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={quantidade}
-                  onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, ''))}
-                  onBlur={() => {
-                    const quantidadeNum = Math.max(1, parseInt(quantidade, 10) || 1)
-                    setQuantidade(String(quantidadeNum))
-                  }}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
-                />
-              </div>
+              {selecionadoEhFrios ? (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-amber-900 mb-1">Tipo de frio</label>
+                  <select
+                    value={tipoFrio}
+                    onChange={(e) => setTipoFrio(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
+                  >
+                    {tiposFrios.map((tipo) => (
+                      <option key={tipo} value={tipo}>
+                        {tipo}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={pesoFrioInput}
+                      onChange={(e) => setPesoFrioInput(e.target.value.replace(/[^\d,.]/g, ''))}
+                      className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
+                    />
+                    <select
+                      value={pesoFrioUnidade}
+                      onChange={(e) => setPesoFrioUnidade(e.target.value)}
+                      className="px-3 py-3 rounded-lg border-2 border-amber-200"
+                    >
+                      <option value="g">g</option>
+                      <option value="kg">kg</option>
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-amber-900 mb-1">
+                    Quantidade
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={quantidade}
+                    onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, ''))}
+                    onBlur={() => {
+                      const quantidadeNum = Math.max(1, parseInt(quantidade, 10) || 1)
+                      setQuantidade(String(quantidadeNum))
+                    }}
+                    className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
+                  />
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <button
@@ -190,6 +243,9 @@ export default function ComandaDetalhe({
                   setMostrarAdicionar(false)
                   setProdutoSelecionado('')
                   setQuantidade('1')
+                  setTipoFrio('Presunto')
+                  setPesoFrioInput('100')
+                  setPesoFrioUnidade('g')
                 }}
                 className="px-4 py-2 rounded-lg bg-stone-200 text-stone-700 font-semibold hover:bg-stone-300 touch-manipulation"
               >
