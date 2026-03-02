@@ -47,6 +47,7 @@ const db = getFirestore(firebaseApp)
 const usuariosCol = db.collection('usuarios')
 const produtosCol = db.collection('produtos')
 const comandasCol = db.collection('comandas')
+const comandasAtivasCol = db.collection('comandas_ativas')
 const vendasCol = db.collection('vendas')
 const fechamentosCol = db.collection('caixa_fechamentos')
 const caixaConfigRef = db.collection('config').doc('caixa')
@@ -256,6 +257,12 @@ async function listarNumerosComandasEmUso() {
     if (numero) usadas.add(numero)
   }
   return usadas
+}
+
+async function liberarComandaAtivaPorNumero(numeroComanda) {
+  const numero = normalizarNumeroComanda(numeroComanda)
+  if (!numero) return
+  await comandasAtivasCol.doc(numero).delete()
 }
 
 function getProximaComandaDisponivel(numerosEmUso) {
@@ -584,7 +591,10 @@ app.delete('/comandas/abertas', async (req, res) => {
 
     const lote = db.batch()
     for (const doc of snap.docs) {
+      const data = doc.data() || {}
+      const numero = normalizarNumeroComanda(data.numero_comanda)
       lote.delete(doc.ref)
+      if (numero) lote.delete(comandasAtivasCol.doc(numero))
     }
     await lote.commit()
 
@@ -618,7 +628,6 @@ app.post('/comandas', async (req, res) => {
     return res.status(409).json({ error: mensagem, proximaDisponivel })
   }
   const identificacao = `Comanda ${numeroFormatado}`
-
   const nova = {
     numero_comanda: numeroFormatado,
     cliente: null,
@@ -629,8 +638,40 @@ app.post('/comandas', async (req, res) => {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
-  const ref = await comandasCol.add(nova)
-  res.status(201).json({ id: ref.id, ...nova })
+
+  try {
+    let criada = null
+    await db.runTransaction(async (trx) => {
+      const lockRef = comandasAtivasCol.doc(numeroFormatado)
+      const lockDoc = await trx.get(lockRef)
+      if (lockDoc.exists) {
+        throw new Error(`Comanda ${numeroFormatado} já está em uso`)
+      }
+
+      const comandaRef = comandasCol.doc()
+      trx.set(comandaRef, nova)
+      trx.set(lockRef, {
+        numero_comanda: numeroFormatado,
+        comandaId: comandaRef.id,
+        status: 'aberta',
+        created_at: new Date().toISOString(),
+      })
+
+      criada = { id: comandaRef.id, ...nova }
+    })
+
+    return res.status(201).json(criada)
+  } catch (error) {
+    if (String(error?.message || '').includes('já está em uso')) {
+      const usados = await listarNumerosComandasEmUso()
+      const proximaDisponivel = getProximaComandaDisponivel(usados)
+      const mensagem = proximaDisponivel
+        ? `Comanda ${numeroFormatado} já está em uso. Use a próxima disponível: ${proximaDisponivel}.`
+        : `Comanda ${numeroFormatado} já está em uso. Não há comandas disponíveis no momento.`
+      return res.status(409).json({ error: mensagem, proximaDisponivel })
+    }
+    return res.status(500).json({ error: error.message || 'Falha ao criar comanda' })
+  }
 })
 
 app.post('/comandas/:id/itens', async (req, res) => {
@@ -821,6 +862,7 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
     fechamentoEm: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   })
+  await liberarComandaAtivaPorNumero(comanda.numero_comanda)
 
   const vendaDoc = await vendaRef.get()
   res.json(docToEntity(vendaDoc))
