@@ -65,6 +65,11 @@ export default function ComandasPage() {
     setComandaSelecionada(nova)
     try {
       await refreshComandas()
+    } catch {
+      // Mantém abertura da comanda mesmo se o refresh falhar.
+    }
+  }
+
   function abrirModalNovaComanda() {
     setNumeroNovaComanda('')
     setMostrarModalNovaComanda(true)
@@ -73,11 +78,6 @@ export default function ComandasPage() {
   function fecharModalNovaComanda() {
     setMostrarModalNovaComanda(false)
     setNumeroNovaComanda('')
-  }
-
-    } catch {
-      // Mantém abertura da comanda mesmo se o refresh falhar.
-    }
   }
 
   function handleAbrirComanda(comanda) {
