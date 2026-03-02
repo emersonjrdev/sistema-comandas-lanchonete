@@ -130,6 +130,14 @@ function estoqueDisponivelParaVenda(produto) {
   return Number(produto?.estoque ?? 0)
 }
 
+function normalizarNumeroComanda(valor) {
+  const raw = String(valor || '').trim()
+  if (!/^\d+$/.test(raw)) return null
+  const numeroInt = Number.parseInt(raw, 10)
+  if (!Number.isFinite(numeroInt) || numeroInt < 1 || numeroInt > 100) return null
+  return String(numeroInt).padStart(3, '0')
+}
+
 async function apagarColecao(colRef) {
   const tamanhoLote = 400
 
@@ -244,7 +252,7 @@ async function listarNumerosComandasEmUso() {
   ])
   const usadas = new Set()
   for (const doc of [...abertasSnap.docs, ...aguardandoSnap.docs]) {
-    const numero = String(doc.data()?.numero_comanda || '').trim()
+    const numero = normalizarNumeroComanda(doc.data()?.numero_comanda)
     if (numero) usadas.add(numero)
   }
   return usadas
@@ -596,14 +604,10 @@ app.post('/comandas', async (req, res) => {
     payload.cliente
   const numero = numeroBruto != null ? String(numeroBruto).trim() : ''
   if (!numero) return res.status(400).json({ error: 'numeroComanda é obrigatório' })
-  if (!/^\d+$/.test(numero)) {
-    return res.status(400).json({ error: 'numeroComanda deve conter apenas números' })
-  }
-  const numeroInt = Number.parseInt(numero, 10)
-  if (!Number.isFinite(numeroInt) || numeroInt < 1 || numeroInt > 100) {
+  const numeroFormatado = normalizarNumeroComanda(numero)
+  if (!numeroFormatado) {
     return res.status(400).json({ error: 'numeroComanda deve estar entre 1 e 100' })
   }
-  const numeroFormatado = String(numeroInt).padStart(3, '0')
   const numerosEmUso = await listarNumerosComandasEmUso()
   if (numerosEmUso.has(numeroFormatado)) {
     const proximaDisponivel = getProximaComandaDisponivel(numerosEmUso)
