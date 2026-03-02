@@ -148,7 +148,7 @@ export default function ComandaDetalhe({
                 isMobile || isTablet ? 'w-full px-4 py-3 text-lg' : 'px-4 py-2'
               }`}
             >
-              {mostrarAdicionar ? 'Fechar adição de produto' : '+ Adicionar Produto'}
+              {mostrarAdicionar ? 'Fechar adicao de produto' : '+ Adicionar produto'}
             </button>
           )}
         </div>
@@ -260,7 +260,7 @@ export default function ComandaDetalhe({
             <p className="py-8 text-center text-stone-500">
               {produtos.length === 0
                 ? 'Cadastre produtos primeiro para adicionar à comanda.'
-                : 'Nenhum item na comanda. Clique em "Adicionar Produto" para começar.'}
+                : 'Nenhum item na comanda. Clique em "Adicionar produto" para comecar.'}
             </p>
           ) : (
             comanda.itens.map((item) => (
