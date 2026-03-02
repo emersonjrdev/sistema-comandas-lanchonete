@@ -49,7 +49,7 @@ export default function ComandasPage() {
       return
     }
 
-    const nova = await criarComanda(numeroComanda.trim(), null)
+    const nova = await criarComanda(numeroComanda.trim())
     if (!nova) {
       playSomErro()
       return

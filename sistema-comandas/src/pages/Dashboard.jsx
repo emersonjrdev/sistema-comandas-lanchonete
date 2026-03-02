@@ -32,6 +32,18 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+          <p className="text-sm font-medium text-stone-500 mb-1">Sangrias</p>
+          <p className="text-2xl font-bold text-red-700 tabular-nums">
+            R$ {(resumo.totalSangrias ?? 0).toFixed(2)}
+          </p>
+        </div>
+        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+          <p className="text-sm font-medium text-stone-500 mb-1">Dinheiro líquido</p>
+          <p className="text-2xl font-bold text-green-700 tabular-nums">
+            R$ {(resumo.dinheiroLiquido ?? 0).toFixed(2)}
+          </p>
+        </div>
+        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Comandas abertas</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             {resumo.comandasAbertas}

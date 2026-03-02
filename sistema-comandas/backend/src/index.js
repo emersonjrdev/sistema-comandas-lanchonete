@@ -2,7 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { initializeApp, cert, getApps } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 
 function normalizarPrivateKey(rawKey) {
   if (!rawKey) return ''
@@ -50,6 +50,7 @@ const comandasCol = db.collection('comandas')
 const vendasCol = db.collection('vendas')
 const fechamentosCol = db.collection('caixa_fechamentos')
 const caixaConfigRef = db.collection('config').doc('caixa')
+const caixasCol = db.collection('caixas')
 
 function gerarId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -98,6 +99,15 @@ function somarTotais(vendas = []) {
   }
 }
 
+function toIsoString(value) {
+  if (!value) return null
+  if (typeof value === 'string') return value
+  if (typeof value.toDate === 'function') return value.toDate().toISOString()
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString()
+}
+
 async function apagarColecao(colRef) {
   const tamanhoLote = 400
 
@@ -113,16 +123,80 @@ async function apagarColecao(colRef) {
   }
 }
 
+async function listarVendasDoCaixa(caixaId) {
+  if (!caixaId) return []
+  const snap = await vendasCol.where('caixaId', '==', String(caixaId)).get()
+  return snap.docs
+    .map((doc) => docToEntity(doc))
+    .sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0))
+}
+
+async function listarSangriasDoCaixa(caixaId) {
+  if (!caixaId) return []
+  const snap = await caixasCol.doc(String(caixaId)).collection('sangrias').get()
+  return snap.docs
+    .map((doc) => {
+      const data = docToEntity(doc)
+      const createdAt = toIsoString(data.createdAt) || data.createdAtIso || null
+      return {
+        ...data,
+        createdAt,
+      }
+    })
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+}
+
+async function getTotalSangriasDoCaixa(caixaId) {
+  const rows = await listarSangriasDoCaixa(caixaId)
+  return rows.reduce((acc, item) => acc + Number(item.valor || 0), 0)
+}
+
+async function reabrirComandasAguardandoPagamento() {
+  const tamanhoLote = 400
+  let totalAtualizadas = 0
+
+  while (true) {
+    const snap = await comandasCol
+      .where('status', '==', 'aguardando_pagamento')
+      .limit(tamanhoLote)
+      .get()
+
+    if (snap.empty) break
+
+    const lote = db.batch()
+    for (const doc of snap.docs) {
+      lote.update(doc.ref, {
+        status: 'aberta',
+        enviadaEm: null,
+        updated_at: new Date().toISOString(),
+      })
+    }
+    await lote.commit()
+    totalAtualizadas += snap.size
+  }
+
+  return totalAtualizadas
+}
+
+async function apagarCaixasComSangrias() {
+  const snap = await caixasCol.get()
+  for (const caixaDoc of snap.docs) {
+    await apagarColecao(caixaDoc.ref.collection('sangrias'))
+    await caixaDoc.ref.delete()
+  }
+}
+
 async function getCaixaStatus() {
   const snap = await caixaConfigRef.get()
   if (!snap.exists) {
-    return { aberto: false, valorInicial: 0, aberturaEm: null }
+    return { aberto: false, valorInicial: 0, aberturaEm: null, caixaId: null }
   }
   const data = snap.data() || {}
   return {
     aberto: data.aberto === true,
     valorInicial: Number(data.valorInicial || 0),
     aberturaEm: data.aberturaEm || null,
+    caixaId: data.caixaId || null,
   }
 }
 
@@ -322,12 +396,19 @@ app.get('/comandas/aguardando-pagamento', async (_, res) => {
 })
 
 app.post('/comandas', async (req, res) => {
-  const { numeroComanda = null } = req.body || {}
-  const numero = numeroComanda != null ? String(numeroComanda).trim() : ''
-  const identificacao = numero ? `Comanda ${numero}` : 'Comanda'
+  const payload = req.body || {}
+  const numeroBruto =
+    payload.numeroComanda ??
+    payload.numero ??
+    payload.comanda ??
+    payload.nome ??
+    payload.cliente
+  const numero = numeroBruto != null ? String(numeroBruto).trim() : ''
+  if (!numero) return res.status(400).json({ error: 'numeroComanda é obrigatório' })
+  const identificacao = `Comanda ${numero}`
 
   const nova = {
-    numero_comanda: numero || null,
+    numero_comanda: numero,
     cliente: null,
     identificacao,
     status: 'aberta',
@@ -488,8 +569,10 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
     })
   }
 
+  const caixaAtual = await getCaixaStatus()
   const venda = {
     comandaId: comanda.id,
+    caixaId: caixaAtual.aberto ? caixaAtual.caixaId || null : null,
     identificacao: comanda.identificacao,
     itens: [...(comanda.itens || [])],
     total: Number(comanda.total || 0),
@@ -523,10 +606,15 @@ app.get('/caixa/status', async (_, res) => {
 })
 
 app.get('/caixa/totais-hoje', async (_, res) => {
-  const vendas = await listarVendasHistorico()
-  const vendasHoje = vendas.filter((v) => isHoje(v.data))
-  const totais = somarTotais(vendasHoje)
-  res.json({ ...totais, vendasHoje })
+  const caixaAtual = await getCaixaStatus()
+  const vendasBase =
+    caixaAtual.aberto && caixaAtual.caixaId
+      ? await listarVendasDoCaixa(caixaAtual.caixaId)
+      : (await listarVendasHistorico()).filter((v) => isHoje(v.data))
+  const totais = somarTotais(vendasBase)
+  const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
+  const dinheiroLiquido = Number(totais.totalDinheiro || 0) - Number(totalSangrias || 0)
+  res.json({ ...totais, totalSangrias, dinheiroLiquido, caixaId: caixaAtual.caixaId || null, vendasHoje: vendasBase })
 })
 
 app.post('/caixa/abrir', async (req, res) => {
@@ -534,14 +622,27 @@ app.post('/caixa/abrir', async (req, res) => {
   const caixaAtual = await getCaixaStatus()
   if (caixaAtual.aberto) return res.status(400).json({ error: 'Caixa já está aberto' })
 
+  const now = new Date().toISOString()
+  const caixaRef = caixasCol.doc()
+  await caixaRef.set({
+    status: 'aberto',
+    abertoEm: now,
+    fechadoEm: null,
+    valorInicial: Number(valorInicial) || 0,
+    totalSangrias: 0,
+    created_at: now,
+    updated_at: now,
+  })
+
   await caixaConfigRef.set({
     aberto: true,
     valorInicial: Number(valorInicial) || 0,
-    aberturaEm: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    aberturaEm: now,
+    caixaId: caixaRef.id,
+    updated_at: now,
   })
 
-  res.json({ sucesso: true })
+  res.json({ sucesso: true, caixaId: caixaRef.id })
 })
 
 app.post('/caixa/fechar', async (req, res) => {
@@ -549,30 +650,55 @@ app.post('/caixa/fechar', async (req, res) => {
   const caixaAtual = await getCaixaStatus()
   if (!caixaAtual.aberto) return res.status(400).json({ error: 'Caixa já está fechado' })
 
-  const vendas = await listarVendasHistorico()
-  const vendasHoje = vendas.filter((v) => isHoje(v.data))
-  const totais = somarTotais(vendasHoje)
-  const totalEsperado = Number(caixaAtual.valorInicial || 0) + Number(totais.totalDinheiro || 0)
+  const caixaId = caixaAtual.caixaId || null
+  const vendasBase = caixaId
+    ? await listarVendasDoCaixa(caixaId)
+    : (await listarVendasHistorico()).filter((v) => isHoje(v.data))
+  const totais = somarTotais(vendasBase)
+  const totalSangrias = caixaId ? await getTotalSangriasDoCaixa(caixaId) : 0
+  const dinheiroLiquido = Number(totais.totalDinheiro || 0) - Number(totalSangrias || 0)
+  const totalEsperado = Number(caixaAtual.valorInicial || 0) + dinheiroLiquido
   const valorContadoNum = Number(valorContado) || 0
   const diferenca = valorContadoNum - totalEsperado
 
   const fechamento = {
+    caixaId,
     data: new Date().toISOString(),
     valorInicial: Number(caixaAtual.valorInicial || 0),
     totalDinheiro: totais.totalDinheiro,
     totalCartao: totais.totalCartao,
     totalPix: totais.totalPix,
+    totalSangrias,
+    dinheiroLiquido,
     valorContado: valorContadoNum,
     diferenca,
   }
 
   const fechamentoRef = await fechamentosCol.add(fechamento)
 
+  if (caixaId) {
+    await caixasCol.doc(caixaId).set(
+      {
+        status: 'fechado',
+        fechadoEm: new Date().toISOString(),
+        totalDinheiro: totais.totalDinheiro,
+        totalCartao: totais.totalCartao,
+        totalPix: totais.totalPix,
+        totalSangrias,
+        dinheiroLiquido,
+        diferenca,
+        updated_at: new Date().toISOString(),
+      },
+      { merge: true }
+    )
+  }
+
   await caixaConfigRef.set(
     {
       aberto: false,
       valorInicial: 0,
       aberturaEm: null,
+      caixaId: null,
       updated_at: new Date().toISOString(),
     },
     { merge: true }
@@ -587,21 +713,134 @@ app.get('/caixa/relatorios', async (_, res) => {
   res.json(snap.docs.map((doc) => docToEntity(doc)))
 })
 
+app.get('/caixa/sangrias', async (req, res) => {
+  const caixaId = String(req.query.caixaId || '').trim()
+  if (!caixaId) return res.status(400).json({ error: 'caixaId é obrigatório' })
+  const rows = await listarSangriasDoCaixa(caixaId)
+  res.json(rows)
+})
+
+app.get('/caixa/sangrias/total', async (req, res) => {
+  const caixaId = String(req.query.caixaId || '').trim()
+  if (!caixaId) return res.status(400).json({ error: 'caixaId é obrigatório' })
+  const totalSangrias = await getTotalSangriasDoCaixa(caixaId)
+  res.json({ caixaId, totalSangrias })
+})
+
+app.post('/caixa/sangrias', async (req, res) => {
+  try {
+    const { caixaId, valor, motivo, operadorId } = req.body || {}
+    const caixaIdNorm = String(caixaId || '').trim()
+    const operadorIdNorm = String(operadorId || '').trim()
+    const valorNum = Number(valor) || 0
+    const motivoFinal = String(motivo || '').trim() || null
+
+    if (!caixaIdNorm) return res.status(400).json({ error: 'caixaId é obrigatório' })
+    if (!operadorIdNorm) return res.status(400).json({ error: 'operadorId é obrigatório' })
+    if (valorNum <= 0) return res.status(400).json({ error: 'valor deve ser maior que zero' })
+
+    const operadorDoc = await usuariosCol.doc(operadorIdNorm).get()
+    if (!operadorDoc.exists) return res.status(403).json({ error: 'Operador inválido' })
+    const operador = docToEntity(operadorDoc)
+    if (String(operador.perfil || '') !== 'admin') {
+      return res.status(403).json({ error: 'Apenas admin pode registrar sangria' })
+    }
+
+    const caixaRef = caixasCol.doc(caixaIdNorm)
+    let payload = null
+
+    await db.runTransaction(async (trx) => {
+      const caixaDoc = await trx.get(caixaRef)
+      if (!caixaDoc.exists) throw new Error('Caixa não encontrado')
+      const caixaData = caixaDoc.data() || {}
+      if (caixaData.status !== 'aberto') throw new Error('Caixa não está aberto')
+
+      const vendasSnap = await trx.get(vendasCol.where('caixaId', '==', caixaIdNorm))
+      const totalVendasDinheiro = vendasSnap.docs
+        .map((doc) => doc.data() || {})
+        .filter((v) => String(v.metodoPagamento || '').toLowerCase().includes('dinheiro'))
+        .reduce((acc, v) => acc + Number(v.total || 0), 0)
+
+      const sangriasSnap = await trx.get(caixaRef.collection('sangrias'))
+      const totalSangriasAtual = sangriasSnap.docs
+        .map((doc) => doc.data() || {})
+        .reduce((acc, row) => acc + Number(row.valor || 0), 0)
+
+      const saldoDisponivelDinheiro = totalVendasDinheiro - totalSangriasAtual
+      if (valorNum > saldoDisponivelDinheiro) {
+        throw new Error('Valor da sangria maior que o saldo disponível em dinheiro')
+      }
+
+      const sangriaRef = caixaRef.collection('sangrias').doc()
+      const now = new Date().toISOString()
+      const totalSangriasNovo = totalSangriasAtual + valorNum
+
+      trx.set(sangriaRef, {
+        valor: valorNum,
+        motivo: motivoFinal,
+        operadorId: operadorIdNorm,
+        operadorNome: operador.nome || null,
+        createdAt: FieldValue.serverTimestamp(),
+        createdAtIso: now,
+        tipo: 'sangria',
+      })
+
+      trx.set(
+        caixaRef,
+        {
+          totalSangrias: totalSangriasNovo,
+          updated_at: now,
+        },
+        { merge: true }
+      )
+
+      payload = {
+        id: sangriaRef.id,
+        caixaId: caixaIdNorm,
+        valor: valorNum,
+        motivo: motivoFinal,
+        operadorId: operadorIdNorm,
+        operadorNome: operador.nome || null,
+        createdAt: now,
+        tipo: 'sangria',
+        totalSangrias: totalSangriasNovo,
+        saldoDisponivelDinheiro: saldoDisponivelDinheiro - valorNum,
+        totalVendasDinheiro,
+      }
+    })
+
+    return res.status(201).json({ sucesso: true, sangria: payload })
+  } catch (error) {
+    const message = error?.message || 'Falha ao registrar sangria'
+    if (
+      message.includes('saldo disponível') ||
+      message.includes('Caixa não está aberto') ||
+      message.includes('Caixa não encontrado')
+    ) {
+      return res.status(400).json({ sucesso: false, error: message })
+    }
+    return res.status(500).json({ sucesso: false, error: message })
+  }
+})
+
 app.delete('/caixa/dados', async (_, res) => {
   try {
     await apagarColecao(vendasCol)
     await apagarColecao(fechamentosCol)
+    await apagarCaixasComSangrias()
+    const comandasReabertas = await reabrirComandasAguardandoPagamento()
     await caixaConfigRef.set(
       {
         aberto: false,
         valorInicial: 0,
         aberturaEm: null,
+        caixaId: null,
         updated_at: new Date().toISOString(),
       },
       { merge: true }
     )
 
-    res.json({ sucesso: true })
+    res.json({ sucesso: true, comandasReabertas })
   } catch (error) {
     res.status(500).json({ sucesso: false, error: error.message || 'Falha ao limpar caixa' })
   }
@@ -670,6 +909,8 @@ app.get('/dashboard/resumo', async (_, res) => {
   const totaisHoje = somarTotais(vendasHoje)
   const totalHistorico = vendas.reduce((acc, v) => acc + Number(v.total || 0), 0)
   const caixaAtual = await getCaixaStatus()
+  const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
+  const dinheiroLiquido = Number(totaisHoje.totalDinheiro || 0) - Number(totalSangrias || 0)
 
   const estoqueBaixo = produtosSnap.docs
     .map((doc) => docToEntity(doc))
@@ -680,6 +921,8 @@ app.get('/dashboard/resumo', async (_, res) => {
     totalDinheiro: totaisHoje.totalDinheiro,
     totalCartao: totaisHoje.totalCartao,
     totalPix: totaisHoje.totalPix,
+    totalSangrias,
+    dinheiroLiquido,
     comandasAbertas: comandasAbertasSnap.size,
     comandasAguardandoPagamento: comandasAguardandoSnap.size,
     vendasFinalizadasHoje: vendasHoje.length,

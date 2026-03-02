@@ -9,6 +9,7 @@ import {
   removerItem,
 } from '../services/storage'
 import { useToast } from '../contexts/ToastContext'
+import { useAuth } from '../contexts/AuthContext'
 import { playSomVenda, playSomErro } from '../utils/sons'
 import ModalPagamento from '../components/ModalPagamento'
 import ItemRow from '../components/comandas/ItemRow'
@@ -42,14 +43,18 @@ export default function Caixa() {
     refresh,
     {
       comandasPendentes,
+      sangrias,
       caixaAberto,
       caixaAtual,
       totais,
+      totalSangrias,
       abrirCaixa,
       fecharCaixa,
+      registrarSangria,
       limparDadosCaixa,
     },
   ] = useCaixa()
+  const { usuario, isAdmin } = useAuth()
   const [produtos] = useProdutos()
   const [mostrarAbertura, setMostrarAbertura] = useState(false)
   const [valorInicial, setValorInicial] = useState('')
@@ -62,6 +67,9 @@ export default function Caixa() {
   const [quantidade, setQuantidade] = useState(1)
   const [produtoComandaSelecionado, setProdutoComandaSelecionado] = useState('')
   const [quantidadeComanda, setQuantidadeComanda] = useState(1)
+  const [valorSangria, setValorSangria] = useState('')
+  const [motivoSangria, setMotivoSangria] = useState('')
+  const [registrandoSangria, setRegistrandoSangria] = useState(false)
   const toast = useToast()
 
   const { totalHoje, vendasHoje } = useMemo(() => {
@@ -154,6 +162,49 @@ export default function Caixa() {
     }
   }
 
+  async function handleRegistrarSangria(e) {
+    e?.preventDefault()
+    if (!isAdmin) {
+      playSomErro()
+      toast.show('Apenas admin pode registrar sangria', 'error')
+      return
+    }
+    if (!caixaAberto || !caixaAtual?.caixaId) {
+      playSomErro()
+      toast.show('Abra o caixa para registrar sangria', 'error')
+      return
+    }
+
+    const valorNum = parseFloat(String(valorSangria).replace(',', '.')) || 0
+    if (valorNum <= 0) {
+      playSomErro()
+      toast.show('Informe um valor de sangria maior que zero', 'error')
+      return
+    }
+
+    setRegistrandoSangria(true)
+    try {
+      const result = await registrarSangria(
+        caixaAtual.caixaId,
+        valorNum,
+        motivoSangria.trim(),
+        usuario?.id
+      )
+      if (result?.sucesso) {
+        playSomVenda()
+        setValorSangria('')
+        setMotivoSangria('')
+        await refresh()
+        toast.show('Sangria registrada com sucesso!')
+      } else {
+        playSomErro()
+        toast.show(result?.erro || 'Não foi possível registrar a sangria', 'error')
+      }
+    } finally {
+      setRegistrandoSangria(false)
+    }
+  }
+
   async function handleAdicionarItemVenda() {
     if (!vendaAdicionarItem || !produtoSelecionado) return
     const produto = produtos.find((p) => String(p.id) === String(produtoSelecionado))
@@ -233,7 +284,10 @@ export default function Caixa() {
   }
 
   const caixa = caixaAtual || { aberto: false, valorInicial: 0 }
-  const totalEsperado = (caixa.valorInicial || 0) + totais.totalDinheiro
+  const totalVendasDinheiro = Number(totais.totalDinheiro || 0)
+  const totalSangriasCaixa = Number(totais.totalSangrias ?? totalSangrias ?? 0)
+  const dinheiroLiquido = Number(totais.dinheiroLiquido ?? totalVendasDinheiro - totalSangriasCaixa)
+  const totalEsperado = (caixa.valorInicial || 0) + dinheiroLiquido
   const diferenca =
     mostrarFechamento && valorContado
       ? (parseFloat(valorContado.replace(',', '.')) || 0) - totalEsperado
@@ -403,6 +457,95 @@ export default function Caixa() {
             R$ {totais.totalPix.toFixed(2)}
           </p>
         </div>
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+          <p className="text-sm font-medium text-stone-500 mb-1">Vendas em dinheiro (caixa atual)</p>
+          <p className="text-2xl font-bold text-amber-800 tabular-nums">
+            R$ {totalVendasDinheiro.toFixed(2)}
+          </p>
+        </div>
+        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+          <p className="text-sm font-medium text-stone-500 mb-1">Total sangrias</p>
+          <p className="text-2xl font-bold text-red-700 tabular-nums">
+            R$ {totalSangriasCaixa.toFixed(2)}
+          </p>
+        </div>
+        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+          <p className="text-sm font-medium text-stone-500 mb-1">Dinheiro líquido</p>
+          <p className="text-2xl font-bold text-green-700 tabular-nums">
+            R$ {dinheiroLiquido.toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-8 p-6 bg-white rounded-xl border-2 border-amber-200 shadow-sm">
+        <h3 className="text-lg font-semibold text-amber-900 mb-4">Sangria de Caixa</h3>
+        <form onSubmit={handleRegistrarSangria} className="flex flex-wrap gap-3 items-end mb-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Valor (R$)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={valorSangria}
+              onChange={(e) => setValorSangria(e.target.value.replace(/[^\d,.]/g, ''))}
+              placeholder="0,00"
+              className="px-4 py-3 rounded-lg border-2 border-amber-200 w-40"
+              disabled={!caixaAberto || !isAdmin || registrandoSangria}
+            />
+          </div>
+          <div className="min-w-[260px] flex-1">
+            <label className="block text-sm font-medium mb-1">Motivo (opcional)</label>
+            <input
+              type="text"
+              value={motivoSangria}
+              onChange={(e) => setMotivoSangria(e.target.value)}
+              placeholder="Ex: retirada para cofre"
+              className="w-full px-4 py-3 rounded-lg border-2 border-amber-200"
+              disabled={!caixaAberto || !isAdmin || registrandoSangria}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={!caixaAberto || !isAdmin || registrandoSangria}
+            className="px-5 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50"
+          >
+            {registrandoSangria ? 'Registrando...' : 'Registrar Sangria'}
+          </button>
+        </form>
+
+        {!isAdmin && (
+          <p className="text-sm text-red-700 mb-3">Somente administradores podem registrar sangria.</p>
+        )}
+
+        {sangrias.length === 0 ? (
+          <p className="text-sm text-stone-500">Nenhuma sangria registrada para este caixa.</p>
+        ) : (
+          <ul className="space-y-2">
+            {sangrias.map((sangria) => (
+              <li
+                key={sangria.id}
+                className="p-3 rounded-lg border border-amber-200 bg-amber-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+              >
+                <div>
+                  <p className="font-semibold text-amber-900">
+                    R$ {Number(sangria.valor || 0).toFixed(2)}
+                  </p>
+                  <p className="text-sm text-stone-600">
+                    {sangria.motivo || 'Sem motivo informado'}
+                  </p>
+                  <p className="text-xs text-stone-500">
+                    Operador: {sangria.operadorNome || sangria.operadorId}
+                  </p>
+                </div>
+                <p className="text-xs text-stone-500">
+                  {formatarData(sangria.createdAt || sangria.createdAtIso)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Pendentes de Pagamento */}

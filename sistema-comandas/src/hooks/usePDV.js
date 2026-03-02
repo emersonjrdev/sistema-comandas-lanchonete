@@ -46,6 +46,11 @@ export function useComandas() {
 export function useDashboard() {
   const [resumo, setResumo] = useState({
     totalHoje: 0,
+    totalDinheiro: 0,
+    totalCartao: 0,
+    totalPix: 0,
+    totalSangrias: 0,
+    dinheiroLiquido: 0,
     comandasAbertas: 0,
     vendasFinalizadasHoje: 0,
     totalHistorico: 0,
@@ -61,6 +66,11 @@ export function useDashboard() {
     refresh().catch(() => {
       setResumo({
         totalHoje: 0,
+        totalDinheiro: 0,
+        totalCartao: 0,
+        totalPix: 0,
+        totalSangrias: 0,
+        dinheiroLiquido: 0,
         comandasAbertas: 0,
         vendasFinalizadasHoje: 0,
         totalHistorico: 0,

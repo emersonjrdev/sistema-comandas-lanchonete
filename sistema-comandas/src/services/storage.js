@@ -39,10 +39,10 @@ export async function getComandas() {
   return apiRequest('/comandas')
 }
 
-export async function criarComanda(numeroComanda, cliente) {
+export async function criarComanda(numeroComanda) {
   const result = await apiRequest('/comandas', {
     method: 'POST',
-    body: { numeroComanda, cliente },
+    body: { numeroComanda },
   })
   emitUpdate()
   return result

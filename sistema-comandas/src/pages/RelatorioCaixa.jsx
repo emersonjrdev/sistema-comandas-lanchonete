@@ -74,6 +74,14 @@ export default function RelatorioCaixa() {
                   <p className="font-bold tabular-nums">R$ {(r.totalPix || 0).toFixed(2)}</p>
                 </div>
                 <div>
+                  <p className="text-stone-500">Total sangrias</p>
+                  <p className="font-bold tabular-nums">R$ {(r.totalSangrias || 0).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-stone-500">Dinheiro líquido</p>
+                  <p className="font-bold tabular-nums">R$ {(r.dinheiroLiquido || 0).toFixed(2)}</p>
+                </div>
+                <div>
                   <p className="text-stone-500">Valor contado</p>
                   <p className="font-bold tabular-nums">R$ {(r.valorContado || 0).toFixed(2)}</p>
                 </div>

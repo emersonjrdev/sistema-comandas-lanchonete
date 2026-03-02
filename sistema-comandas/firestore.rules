@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == "admin";
+    }
+
+    match /caixas/{caixaId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+
+      match /sangrias/{sangriaId} {
+        allow read: if isSignedIn();
+        allow create: if isAdmin()
+          && request.resource.data.tipo == "sangria"
+          && request.resource.data.valor is number
+          && request.resource.data.valor > 0
+          && get(/databases/$(database)/documents/caixas/$(caixaId)).data.status == "aberto";
+        allow update, delete: if false;
+      }
+    }
+  }
+}
