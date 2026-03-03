@@ -29,6 +29,11 @@ export default function Login({ onLogin }) {
       <div className="w-full max-w-md md:max-w-lg">
         <div className="bg-white rounded-2xl border-2 border-amber-200 shadow-xl p-6 md:p-8">
           <div className="text-center mb-6">
+            <img
+              src="/logo-padaria.png"
+              alt="Logo Padaria Grande Família"
+              className="h-20 w-20 md:h-24 md:w-24 mx-auto mb-3 object-contain rounded-full"
+            />
             <h1 className="text-2xl md:text-3xl font-bold text-amber-900">
               Padaria Grande Familia
             </h1>
