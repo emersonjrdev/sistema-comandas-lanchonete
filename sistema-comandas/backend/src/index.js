@@ -369,8 +369,40 @@ async function seedUsuarios() {
 await seedUsuarios()
 await seedProdutosFixos()
 
+function normalizarOrigem(origem) {
+  return String(origem || '')
+    .trim()
+    .replace(/\/+$/, '')
+    .toLowerCase()
+}
+
+const corsOriginsConfig = String(process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean)
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Permite requests server-to-server e apps nativos sem Origin.
+    if (!origin) return callback(null, true)
+
+    if (corsOriginsConfig.length === 0 || corsOriginsConfig.includes('*')) {
+      return callback(null, true)
+    }
+
+    const origemRecebida = normalizarOrigem(origin)
+    const permitido = corsOriginsConfig.some(
+      (item) => normalizarOrigem(item) === origemRecebida
+    )
+    return callback(null, permitido)
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-operador-id'],
+}
+
 const app = express()
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || '*' }))
+app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
 app.use(express.json())
 
 app.get('/health', async (_, res) => {
