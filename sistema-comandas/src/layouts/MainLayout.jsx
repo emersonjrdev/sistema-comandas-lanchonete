@@ -40,7 +40,7 @@ export default function MainLayout() {
             <img
               src="/logo-padaria.png"
               alt="Logo Padaria Grande Família"
-              className="h-8 w-8 object-contain"
+              className="h-8 w-8 object-contain rounded-full bg-stone-200/85 p-0.5"
             />
             <h1 className="text-base font-bold truncate">{tituloAtual}</h1>
           </div>

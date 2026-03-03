@@ -26,7 +26,7 @@ export default function Topbar() {
         <img
           src="/logo-padaria.png"
           alt="Logo Padaria Grande Família"
-          className="h-10 w-10 md:h-12 md:w-12 object-contain"
+          className="h-10 w-10 md:h-12 md:w-12 object-contain rounded-full bg-stone-200/85 p-0.5"
         />
         <h1 className="text-base md:text-xl font-bold tracking-tight truncate">
           Padaria Grande Família
