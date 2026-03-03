@@ -36,7 +36,14 @@ export default function MainLayout() {
           >
             Menu
           </button>
-          <h1 className="text-base font-bold truncate">{tituloAtual}</h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <img
+              src="/logo-padaria.png"
+              alt="Logo Padaria Grande Família"
+              className="h-8 w-8 object-contain rounded-full bg-amber-50/90 p-0.5"
+            />
+            <h1 className="text-base font-bold truncate">{tituloAtual}</h1>
+          </div>
           <button
             type="button"
             onClick={logout}

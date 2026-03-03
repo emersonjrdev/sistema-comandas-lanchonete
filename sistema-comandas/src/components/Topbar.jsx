@@ -22,9 +22,16 @@ export default function Topbar() {
 
   return (
     <header className="min-h-16 bg-amber-800 text-white px-4 md:px-6 py-2 flex items-center justify-between gap-3 shrink-0 shadow-md">
-      <h1 className="text-base md:text-xl font-bold tracking-tight">
-        Padaria Grande Familia
-      </h1>
+      <div className="flex items-center gap-3 min-w-0">
+        <img
+          src="/logo-padaria.png"
+          alt="Logo Padaria Grande Família"
+          className="h-10 w-10 md:h-12 md:w-12 object-contain rounded-full bg-amber-50/80 p-1"
+        />
+        <h1 className="text-base md:text-xl font-bold tracking-tight truncate">
+          Padaria Grande Família
+        </h1>
+      </div>
       <div className="flex items-center gap-2 md:gap-4 flex-wrap justify-end">
         <span className="text-xs md:text-sm text-amber-200 max-w-40 truncate">{usuario?.nome}</span>
         <div className="text-sm md:text-lg font-mono tabular-nums bg-amber-900/50 px-3 md:px-4 py-2 rounded-lg">
