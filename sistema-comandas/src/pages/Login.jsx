@@ -14,7 +14,14 @@ export default function Login({ onLogin }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setErro('')
-    const resultado = await onLogin(nome.trim(), senha)
+    let resultado = null
+    try {
+      resultado = await onLogin(nome.trim(), senha)
+    } catch (error) {
+      playSomErro()
+      setErro(error?.message || 'Erro ao conectar com o servidor')
+      return
+    }
     if (resultado.sucesso) {
       playSomVenda()
       return
