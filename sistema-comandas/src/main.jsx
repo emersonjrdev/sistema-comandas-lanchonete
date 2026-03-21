@@ -13,10 +13,26 @@ if ('serviceWorker' in navigator) {
   })
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const root = ReactDOM.createRoot(document.getElementById('root'))
+root.render(
   <React.StrictMode>
     <BrowserRouter>
       <App />
     </BrowserRouter>
   </React.StrictMode>,
 )
+
+// Esconde a splash quando o app estiver montado (após paint + tempo mínimo)
+const hideSplash = () => {
+  const splash = document.getElementById('splash')
+  if (splash) splash.classList.add('loaded')
+}
+const minSplashTime = 400
+const t0 = Date.now()
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    const elapsed = Date.now() - t0
+    const delay = Math.max(0, minSplashTime - elapsed)
+    setTimeout(hideSplash, delay)
+  })
+})
