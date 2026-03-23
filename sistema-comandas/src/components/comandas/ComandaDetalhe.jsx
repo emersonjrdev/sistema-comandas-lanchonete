@@ -21,6 +21,7 @@ export default function ComandaDetalhe({
   const [mostrarAdicionar, setMostrarAdicionar] = useState(isMobile || isTablet)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState('1')
+  const [valorUnitario, setValorUnitario] = useState('')
   const [tipoFrio, setTipoFrio] = useState('Presunto')
   const [pesoFrioInput, setPesoFrioInput] = useState('100')
   const [pesoFrioUnidade, setPesoFrioUnidade] = useState('g')
@@ -50,6 +51,7 @@ export default function ComandaDetalhe({
     [produtos]
   )
   const produtoSelecionadoObj = produtos.find((p) => String(p.id) === String(produtoSelecionado))
+  const selecionadoEhFixo = produtoSelecionadoObj?.fixo === true
   const selecionadoEhFrios =
     String(produtoSelecionadoObj?.nome || '')
       .normalize('NFD')
@@ -68,22 +70,29 @@ export default function ComandaDetalhe({
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
     const estoqueNecessario = selecionadoEhFrios ? pesoGramas : quantidadeNum
+    const valorUnitarioNum = Number(String(valorUnitario || '').replace(',', '.'))
 
     if (estoqueDisponivel(produtoSelecionado) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente para este produto', 'error')
       return
     }
+    if (selecionadoEhFixo && (!Number.isFinite(valorUnitarioNum) || valorUnitarioNum <= 0)) {
+      playSomErro()
+      toast.show('Informe o valor unitário para produto fixo', 'error')
+      return
+    }
 
     const payload = selecionadoEhFrios
-      ? { pesoGramas, tipoFrio }
-      : { quantidade: quantidadeNum }
+      ? { pesoGramas, tipoFrio, ...(selecionadoEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
+      : { quantidade: quantidadeNum, ...(selecionadoEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
     const atualizada = await adicionarItem(comanda.id, produtoSelecionado, payload)
     if (atualizada) {
       playSomAcao()
       onComandaAtualizada(atualizada)
       setProdutoSelecionado('')
       setQuantidade('1')
+      setValorUnitario('')
       setTipoFrio('Presunto')
       setPesoFrioInput('100')
       setPesoFrioUnidade('g')
@@ -168,7 +177,10 @@ export default function ComandaDetalhe({
                   <option value="">Selecione...</option>
                   {produtosOrdenados.map((p) => (
                     <option key={p.id} value={p.id} disabled={p.fixo !== true && estoqueDisponivel(p.id) < 1}>
-                      {p.nome} - R$ {Number(p.preco).toFixed(2)} {p.fixo === true ? '(estoque infinito)' : estoqueDisponivel(p.id) < 1 ? '(sem estoque)' : ''}
+                      {p.nome}{' '}
+                      {p.fixo === true
+                        ? '(valor no caixa)'
+                        : `- R$ ${Number(p.preco).toFixed(2)} ${estoqueDisponivel(p.id) < 1 ? '(sem estoque)' : ''}`}
                     </option>
                   ))}
                   {produtosOrdenados.length === 0 && (
@@ -228,6 +240,19 @@ export default function ComandaDetalhe({
                 </div>
               )}
             </div>
+            {selecionadoEhFixo && (
+              <div>
+                <label className="block text-sm font-medium text-amber-900 mb-1">Valor unitário (R$)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={valorUnitario}
+                  onChange={(e) => setValorUnitario(e.target.value.replace(/[^\d,.]/g, ''))}
+                  placeholder="0,00"
+                  className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
+                />
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
@@ -243,6 +268,7 @@ export default function ComandaDetalhe({
                   setMostrarAdicionar(false)
                   setProdutoSelecionado('')
                   setQuantidade('1')
+                  setValorUnitario('')
                   setTipoFrio('Presunto')
                   setPesoFrioInput('100')
                   setPesoFrioUnidade('g')

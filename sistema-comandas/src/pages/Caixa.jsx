@@ -72,11 +72,13 @@ export default function Caixa() {
   const [vendaAdicionarItem, setVendaAdicionarItem] = useState(null)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState('1')
+  const [valorUnitarioVenda, setValorUnitarioVenda] = useState('')
   const [tipoFrioVenda, setTipoFrioVenda] = useState('Presunto')
   const [pesoFrioVendaInput, setPesoFrioVendaInput] = useState('100')
   const [pesoFrioVendaUnidade, setPesoFrioVendaUnidade] = useState('g')
   const [produtoComandaSelecionado, setProdutoComandaSelecionado] = useState('')
   const [quantidadeComanda, setQuantidadeComanda] = useState('1')
+  const [valorUnitarioComanda, setValorUnitarioComanda] = useState('')
   const [tipoFrioComanda, setTipoFrioComanda] = useState('Presunto')
   const [pesoFrioComandaInput, setPesoFrioComandaInput] = useState('100')
   const [pesoFrioComandaUnidade, setPesoFrioComandaUnidade] = useState('g')
@@ -119,6 +121,8 @@ export default function Caixa() {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase() === 'frios'
+  const comandaEhFixo = produtoComandaObj?.fixo === true
+  const vendaEhFixo = produtoVendaObj?.fixo === true
   const comandaEmEdicao = useMemo(
     () => comandasPendentes.find((comanda) => comanda.id === comandaEdicaoId) || null,
     [comandasPendentes, comandaEdicaoId]
@@ -269,15 +273,21 @@ export default function Caixa() {
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioVendaInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioVendaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
     const estoqueNecessario = vendaEhFrios ? pesoGramas : quantidadeNum
+    const valorUnitarioNum = Number(String(valorUnitarioVenda || '').replace(',', '.'))
     const produto = produtos.find((p) => String(p.id) === String(produtoSelecionado))
     if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
+    if (vendaEhFixo && (!Number.isFinite(valorUnitarioNum) || valorUnitarioNum <= 0)) {
+      playSomErro()
+      toast.show('Informe o valor unitário para produto fixo', 'error')
+      return
+    }
     const payload = vendaEhFrios
-      ? { pesoGramas, tipoFrio: tipoFrioVenda }
-      : { quantidade: quantidadeNum }
+      ? { pesoGramas, tipoFrio: tipoFrioVenda, ...(vendaEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
+      : { quantidade: quantidadeNum, ...(vendaEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
     const venda = await adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, payload)
     if (venda) {
       playSomVenda()
@@ -285,6 +295,7 @@ export default function Caixa() {
       setVendaAdicionarItem(null)
       setProdutoSelecionado('')
       setQuantidade('1')
+      setValorUnitarioVenda('')
       setTipoFrioVenda('Presunto')
       setPesoFrioVendaInput('100')
       setPesoFrioVendaUnidade('g')
@@ -299,6 +310,7 @@ export default function Caixa() {
     setComandaEdicaoId(null)
     setProdutoComandaSelecionado('')
     setQuantidadeComanda('1')
+    setValorUnitarioComanda('')
     setTipoFrioComanda('Presunto')
     setPesoFrioComandaInput('100')
     setPesoFrioComandaUnidade('g')
@@ -310,16 +322,26 @@ export default function Caixa() {
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioComandaInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioComandaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
     const estoqueNecessario = comandaEhFrios ? pesoGramas : quantidadeComandaNum
+    const valorUnitarioNum = Number(String(valorUnitarioComanda || '').replace(',', '.'))
     const produto = produtos.find((p) => String(p.id) === String(produtoComandaSelecionado))
     if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
+    if (comandaEhFixo && (!Number.isFinite(valorUnitarioNum) || valorUnitarioNum <= 0)) {
+      playSomErro()
+      toast.show('Informe o valor unitário para produto fixo', 'error')
+      return
+    }
 
     const payload = comandaEhFrios
-      ? { pesoGramas, tipoFrio: tipoFrioComanda }
-      : { quantidade: quantidadeComandaNum }
+      ? {
+          pesoGramas,
+          tipoFrio: tipoFrioComanda,
+          ...(comandaEhFixo ? { valorUnitario: valorUnitarioNum } : {}),
+        }
+      : { quantidade: quantidadeComandaNum, ...(comandaEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
     const comandaAtualizada = await adicionarItem(
       comandaEdicaoId,
       produtoComandaSelecionado,
@@ -330,6 +352,7 @@ export default function Caixa() {
       await refresh()
       setProdutoComandaSelecionado('')
       setQuantidadeComanda('1')
+      setValorUnitarioComanda('')
       setTipoFrioComanda('Presunto')
       setPesoFrioComandaInput('100')
       setPesoFrioComandaUnidade('g')
@@ -683,6 +706,7 @@ export default function Caixa() {
                       setComandaEdicaoId(comanda.id)
                       setProdutoComandaSelecionado('')
                       setQuantidadeComanda('1')
+                      setValorUnitarioComanda('')
                       setTipoFrioComanda('Presunto')
                       setPesoFrioComandaInput('100')
                       setPesoFrioComandaUnidade('g')
@@ -732,7 +756,10 @@ export default function Caixa() {
                         <option value="">Produto...</option>
                         {produtosOrdenados.map((p) => (
                           <option key={p.id} value={p.id} disabled={p.fixo !== true && Number(p.estoque ?? 0) < 1}>
-                            {p.nome} - R$ {p.preco?.toFixed(2)} {p.fixo === true ? '(estoque infinito)' : Number(p.estoque ?? 0) < 1 ? '(sem estoque)' : ''}
+                            {p.nome}{' '}
+                            {p.fixo === true
+                              ? '(valor no caixa)'
+                              : `- R$ ${p.preco?.toFixed(2)} ${Number(p.estoque ?? 0) < 1 ? '(sem estoque)' : ''}`}
                           </option>
                         ))}
                       </select>
@@ -776,6 +803,18 @@ export default function Caixa() {
                             <option value="kg">kg</option>
                           </select>
                         </>
+                      )}
+                      {comandaEhFixo && (
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={valorUnitarioComanda}
+                          onChange={(e) =>
+                            setValorUnitarioComanda(e.target.value.replace(/[^\d,.]/g, ''))
+                          }
+                          placeholder="Valor unitário (R$)"
+                          className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
+                        />
                       )}
                       <button
                         type="button"
@@ -867,7 +906,10 @@ export default function Caixa() {
                       <option value="">Produto...</option>
                       {produtosOrdenados.map((p) => (
                         <option key={p.id} value={p.id} disabled={p.fixo !== true && Number(p.estoque ?? 0) < 1}>
-                          {p.nome} - R$ {p.preco?.toFixed(2)} {p.fixo === true ? '(estoque infinito)' : Number(p.estoque ?? 0) < 1 ? '(sem estoque)' : ''}
+                          {p.nome}{' '}
+                          {p.fixo === true
+                            ? '(valor no caixa)'
+                            : `- R$ ${p.preco?.toFixed(2)} ${Number(p.estoque ?? 0) < 1 ? '(sem estoque)' : ''}`}
                         </option>
                       ))}
                     </select>
@@ -910,6 +952,18 @@ export default function Caixa() {
                         </select>
                       </>
                     )}
+                    {vendaEhFixo && (
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={valorUnitarioVenda}
+                        onChange={(e) =>
+                          setValorUnitarioVenda(e.target.value.replace(/[^\d,.]/g, ''))
+                        }
+                        placeholder="Valor unitário (R$)"
+                        className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
+                      />
+                    )}
                     <button
                       type="button"
                       onClick={handleAdicionarItemVenda}
@@ -924,6 +978,7 @@ export default function Caixa() {
                         setVendaAdicionarItem(null)
                         setProdutoSelecionado('')
                         setQuantidade('1')
+                        setValorUnitarioVenda('')
                         setTipoFrioVenda('Presunto')
                         setPesoFrioVendaInput('100')
                         setPesoFrioVendaUnidade('g')

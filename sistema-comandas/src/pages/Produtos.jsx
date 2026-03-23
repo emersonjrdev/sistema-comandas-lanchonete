@@ -46,7 +46,8 @@ export default function Produtos() {
     e.preventDefault()
     const nome = formNome.trim()
     const preco = parseFloat(String(formPreco).replace(',', '.'))
-    if (!nome || isNaN(preco) || preco < 0) {
+    const ehFixo = editando?.fixo === true
+    if (!nome || (!ehFixo && (isNaN(preco) || preco < 0))) {
       playSomErro()
       return
     }
@@ -54,7 +55,7 @@ export default function Produtos() {
     const estoque = Math.max(0, parseInt(formEstoque, 10) || 0)
     try {
       if (editando) {
-        await editarProduto(editando.id, nome, preco, estoque)
+        await editarProduto(editando.id, nome, ehFixo ? 0 : preco, estoque)
       } else {
         await addProduto({ nome, preco, estoque })
       }
@@ -149,10 +150,16 @@ export default function Produtos() {
                 inputMode="decimal"
                 value={formPreco}
                 onChange={(e) => setFormPreco(sanitizarDecimal(e.target.value))}
-                placeholder="0,00"
+                placeholder={editando?.fixo === true ? 'Valor informado no caixa' : '0,00'}
                 className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900 font-mono tabular-nums"
-                required
+                required={editando?.fixo !== true}
+                disabled={editando?.fixo === true}
               />
+              {editando?.fixo === true && (
+                <p className="text-xs text-stone-500 mt-1">
+                  Produto fixo: o valor é informado no caixa na hora da venda.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-amber-900 mb-1">
@@ -219,7 +226,9 @@ export default function Produtos() {
                     <p className="text-xs text-amber-700 mt-1">Produto fixo</p>
                   )}
                   <p className="text-xl font-bold text-amber-800 tabular-nums mt-1">
-                    R$ {Number(produto.preco).toFixed(2)}
+                    {produto.fixo === true
+                      ? 'Valor no caixa'
+                      : `R$ ${Number(produto.preco).toFixed(2)}`}
                   </p>
                   <p className="text-sm text-stone-500 mt-1">
                     Estoque: {produto.estoque ?? 0}

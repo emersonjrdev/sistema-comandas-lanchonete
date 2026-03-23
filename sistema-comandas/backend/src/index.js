@@ -323,10 +323,15 @@ async function seedProdutosFixos() {
     const chave = normalizarNomeProduto(nomeFixo)
     const existente = mapaPorNome.get(chave)
     if (existente) {
-      if (existente.data.fixo !== true || Number(existente.data.estoque || 0) < 999999) {
+      if (
+        existente.data.fixo !== true ||
+        Number(existente.data.estoque || 0) < 999999 ||
+        Number(existente.data.preco || 0) !== 0
+      ) {
         await existente.ref.set(
           {
             fixo: true,
+            preco: 0,
             estoque: Math.max(999999, Number(existente.data.estoque || 0)),
             updated_at: new Date().toISOString(),
           },
@@ -498,7 +503,7 @@ app.post('/produtos', async (req, res) => {
 
   const novo = {
     nome: nomeFinal,
-    preco: Number(preco) || 0,
+    preco: fixo ? 0 : Number(preco) || 0,
     estoque: Math.max(0, Number(estoque) || 0),
     fixo,
     created_at: new Date().toISOString(),
@@ -524,7 +529,12 @@ app.put('/produtos/:id', async (req, res) => {
 
   await ref.update({
     nome: nomeNovo,
-    preco: preco !== undefined ? Number(preco) || 0 : Number(atual.preco || 0),
+    preco:
+      atual.fixo === true
+        ? 0
+        : preco !== undefined
+          ? Number(preco) || 0
+          : Number(atual.preco || 0),
     estoque:
       estoque !== undefined
         ? Math.max(0, Number(estoque) || 0)
@@ -708,7 +718,7 @@ app.post('/comandas', async (req, res) => {
 
 app.post('/comandas/:id/itens', async (req, res) => {
   const comandaId = String(req.params.id)
-  const { produtoId, quantidade = 1, pesoGramas, tipoFrio } = req.body || {}
+  const { produtoId, quantidade = 1, pesoGramas, tipoFrio, valorUnitario } = req.body || {}
 
   const comandaRef = comandasCol.doc(comandaId)
   const comandaDoc = await comandaRef.get()
@@ -723,24 +733,30 @@ app.post('/comandas/:id/itens', async (req, res) => {
   const produto = docToEntity(produtoDoc)
 
   const isFrios = produtoEhFrios(produto)
+  const isFixo = produtoEhFixo(produto)
   const qtd = Math.max(1, Number(quantidade) || 1)
   const pesoNum = Math.max(1, Number(pesoGramas) || 0)
   const tipoFrioFinal = String(tipoFrio || '').trim()
+  const precoBase =
+    isFixo && valorUnitario !== undefined ? Number(valorUnitario) : Number(produto.preco || 0)
   const estoqueNecessario = isFrios ? pesoNum : qtd
   if (isFrios && !tipoFrioFinal) {
     return res.status(400).json({ error: 'tipoFrio é obrigatório para produto Frios' })
+  }
+  if (isFixo && (!Number.isFinite(precoBase) || precoBase <= 0)) {
+    return res.status(400).json({ error: 'Informe um valor unitário maior que zero para produto fixo' })
   }
   if (estoqueDisponivelParaVenda(produto) < estoqueNecessario) {
     return res.status(400).json({ error: 'Estoque insuficiente' })
   }
 
-  const subtotal = isFrios ? Number(produto.preco) * (pesoNum / 100) : Number(produto.preco) * qtd
+  const subtotal = isFrios ? precoBase * (pesoNum / 100) : precoBase * qtd
   const item = {
     id: gerarId(),
     produto_id: produto.id,
     produtoId: produto.id,
     nome: isFrios ? `${produto.nome} - ${tipoFrioFinal}` : produto.nome,
-    preco: Number(produto.preco),
+    preco: precoBase,
     quantidade: isFrios ? 1 : qtd,
     unidadeMedida: isFrios ? 'gramas' : 'unidade',
     pesoGramas: isFrios ? pesoNum : null,
@@ -1155,7 +1171,7 @@ app.delete('/caixa/dados', async (_, res) => {
 
 app.post('/vendas/:id/itens', async (req, res) => {
   const { id } = req.params
-  const { produtoId, quantidade = 1, pesoGramas, tipoFrio } = req.body || {}
+  const { produtoId, quantidade = 1, pesoGramas, tipoFrio, valorUnitario } = req.body || {}
 
   const vendaRef = vendasCol.doc(String(id))
   const vendaDoc = await vendaRef.get()
@@ -1168,12 +1184,18 @@ app.post('/vendas/:id/itens', async (req, res) => {
   const produto = docToEntity(produtoDoc)
 
   const isFrios = produtoEhFrios(produto)
+  const isFixo = produtoEhFixo(produto)
   const qtd = Math.max(1, Number(quantidade) || 1)
   const pesoNum = Math.max(1, Number(pesoGramas) || 0)
   const tipoFrioFinal = String(tipoFrio || '').trim()
+  const precoBase =
+    isFixo && valorUnitario !== undefined ? Number(valorUnitario) : Number(produto.preco || 0)
   const estoqueNecessario = isFrios ? pesoNum : qtd
   if (isFrios && !tipoFrioFinal) {
     return res.status(400).json({ error: 'tipoFrio é obrigatório para produto Frios' })
+  }
+  if (isFixo && (!Number.isFinite(precoBase) || precoBase <= 0)) {
+    return res.status(400).json({ error: 'Informe um valor unitário maior que zero para produto fixo' })
   }
   if (estoqueDisponivelParaVenda(produto) < estoqueNecessario) {
     return res.status(400).json({ error: 'Estoque insuficiente' })
@@ -1184,12 +1206,12 @@ app.post('/vendas/:id/itens', async (req, res) => {
     produto_id: produto.id,
     produtoId: produto.id,
     nome: isFrios ? `${produto.nome} - ${tipoFrioFinal}` : produto.nome,
-    preco: Number(produto.preco || 0),
+    preco: precoBase,
     quantidade: isFrios ? 1 : qtd,
     unidadeMedida: isFrios ? 'gramas' : 'unidade',
     pesoGramas: isFrios ? pesoNum : null,
     tipoFrio: isFrios ? tipoFrioFinal : null,
-    subtotal: isFrios ? Number(produto.preco || 0) * (pesoNum / 100) : Number(produto.preco || 0) * qtd,
+    subtotal: isFrios ? precoBase * (pesoNum / 100) : precoBase * qtd,
     created_at: new Date().toISOString(),
   }
 
