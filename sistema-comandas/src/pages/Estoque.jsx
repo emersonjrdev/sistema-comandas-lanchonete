@@ -5,6 +5,7 @@ import { useProdutos } from '../hooks/usePDV'
 export default function Estoque() {
   const [produtos, estoqueBaixo, refresh, { setEstoque, incrementarEstoque }] = useEstoque()
   const [produtosAll] = useProdutos()
+  const [buscaProduto, setBuscaProduto] = useState('')
   const [editando, setEditando] = useState(null)
   const [valorEntrada, setValorEntrada] = useState('')
 
@@ -51,6 +52,21 @@ export default function Estoque() {
     [estoqueBaixo]
   )
 
+  const termoBusca = String(buscaProduto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+  const produtosFiltrados = useMemo(
+    () =>
+      termoBusca
+        ? produtosParaExibir.filter((p) =>
+            String(p?.nome || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase()
+              .includes(termoBusca)
+          )
+        : produtosParaExibir,
+    [produtosParaExibir, termoBusca]
+  )
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-amber-900 mb-6">Estoque</h2>
@@ -74,8 +90,19 @@ export default function Estoque() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {produtosParaExibir.map((produto) => {
+        <>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-amber-900 mb-1">Buscar produto</label>
+            <input
+              type="search"
+              value={buscaProduto}
+              onChange={(e) => setBuscaProduto(e.target.value)}
+              placeholder="Digite o nome do produto..."
+              className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900"
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {produtosFiltrados.map((produto) => {
             const baixo = (produto.estoque ?? 0) < 5
             const isEditando = editando?.id === produto.id
 
@@ -145,7 +172,11 @@ export default function Estoque() {
               </div>
             )
           })}
-        </div>
+          </div>
+          {produtosFiltrados.length === 0 && termoBusca && (
+            <p className="mt-4 text-center text-stone-500">Nenhum produto encontrado para &quot;{buscaProduto}&quot;</p>
+          )}
+        </>
       )}
     </div>
   )

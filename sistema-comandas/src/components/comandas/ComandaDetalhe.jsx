@@ -19,6 +19,7 @@ export default function ComandaDetalhe({
   isTablet = false,
 }) {
   const [mostrarAdicionar, setMostrarAdicionar] = useState(isMobile || isTablet)
+  const [buscaProduto, setBuscaProduto] = useState('')
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState('1')
   const [valorTotal, setValorTotal] = useState('')
@@ -42,13 +43,27 @@ export default function ComandaDetalhe({
 
   const produtosOrdenados = useMemo(
     () =>
-      produtos
-        .sort((a, b) =>
-          String(a?.nome || '').localeCompare(String(b?.nome || ''), 'pt-BR', {
-            sensitivity: 'base',
-          })
-        ),
+      [...produtos].sort((a, b) =>
+        String(a?.nome || '').localeCompare(String(b?.nome || ''), 'pt-BR', {
+          sensitivity: 'base',
+        })
+      ),
     [produtos]
+  )
+
+  const termoBusca = String(buscaProduto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+  const produtosFiltrados = useMemo(
+    () =>
+      termoBusca
+        ? produtosOrdenados.filter((p) =>
+            String(p?.nome || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase()
+              .includes(termoBusca)
+          )
+        : produtosOrdenados,
+    [produtosOrdenados, termoBusca]
   )
   const produtoSelecionadoObj = produtos.find((p) => String(p.id) === String(produtoSelecionado))
   const selecionadoEhFixo = produtoSelecionadoObj?.fixo === true
@@ -91,6 +106,7 @@ export default function ComandaDetalhe({
       if (atualizada) {
         playSomAcao()
         onComandaAtualizada(atualizada)
+        setBuscaProduto('')
         setProdutoSelecionado('')
         setQuantidade('1')
         setValorTotal('')
@@ -184,6 +200,18 @@ export default function ComandaDetalhe({
 
         {mostrarAdicionar && produtos.length > 0 && (
           <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200 space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-amber-900 mb-1">
+                Buscar produto
+              </label>
+              <input
+                type="search"
+                value={buscaProduto}
+                onChange={(e) => setBuscaProduto(e.target.value)}
+                placeholder="Digite o nome do produto..."
+                className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-amber-900 mb-1">
@@ -195,7 +223,7 @@ export default function ComandaDetalhe({
                   className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
                 >
                   <option value="">Selecione...</option>
-                  {produtosOrdenados.map((p) => (
+                  {produtosFiltrados.map((p) => (
                     <option key={p.id} value={p.id} disabled={p.fixo !== true && estoqueDisponivel(p.id) < 1}>
                       {p.nome}{' '}
                       {p.fixo === true
@@ -203,8 +231,10 @@ export default function ComandaDetalhe({
                         : `- R$ ${Number(p.preco).toFixed(2)} ${estoqueDisponivel(p.id) < 1 ? '(sem estoque)' : ''}`}
                     </option>
                   ))}
-                  {produtosOrdenados.length === 0 && (
-                    <option value="" disabled>Nenhum produto com estoque</option>
+                  {produtosFiltrados.length === 0 && (
+                    <option value="" disabled>
+                      {termoBusca ? 'Nenhum produto encontrado' : 'Nenhum produto com estoque'}
+                    </option>
                   )}
                 </select>
               </div>
@@ -286,6 +316,7 @@ export default function ComandaDetalhe({
                 type="button"
                 onClick={() => {
                   setMostrarAdicionar(false)
+                  setBuscaProduto('')
                   setProdutoSelecionado('')
                   setQuantidade('1')
                   setValorTotal('')
