@@ -177,6 +177,9 @@ export default function Caixa() {
       setValorContado('')
       await refresh()
       toast.show(`Caixa fechado. Diferença: R$ ${r.fechamento.diferenca.toFixed(2)}`)
+      if (r.avisoComandas) {
+        toast.show(r.avisoComandas, 'warning')
+      }
     } else {
       toast.show(r.erro || 'Erro ao fechar caixa', 'error')
       playSomErro()

@@ -218,11 +218,16 @@ async function apagarCaixasComSangrias() {
 }
 
 async function resetarComandasParaNovoDia() {
-  const tamanhoLote = 400
+  const tamanhoLote = 100 // Lotes menores para evitar RESOURCE_EXHAUSTED
   let totalResetadas = 0
+  let lastDoc = null
 
   while (true) {
-    const snap = await comandasCol.limit(tamanhoLote).get()
+    let q = comandasCol
+      .where('status', 'in', ['aberta', 'aguardando_pagamento'])
+      .limit(tamanhoLote)
+    if (lastDoc) q = q.startAfter(lastDoc)
+    const snap = await q.get()
     if (snap.empty) break
 
     const lote = db.batch()
@@ -241,6 +246,8 @@ async function resetarComandasParaNovoDia() {
     }
     await lote.commit()
     totalResetadas += snap.size
+    lastDoc = snap.docs[snap.docs.length - 1]
+    if (snap.size < tamanhoLote) break
   }
 
   return totalResetadas
@@ -1029,10 +1036,22 @@ app.post('/caixa/fechar', async (req, res) => {
     { merge: true }
   )
 
-  const comandasResetadas = await resetarComandasParaNovoDia()
+  let comandasResetadas = 0
+  let avisoComandas = null
+  try {
+    comandasResetadas = await resetarComandasParaNovoDia()
+  } catch (err) {
+    console.error('Erro ao resetar comandas (quota Firestore?):', err?.message || err)
+    avisoComandas = 'Caixa fechado, mas não foi possível resetar comandas. Cota Firestore pode ter sido excedida.'
+  }
 
   const fechamentoDoc = await fechamentoRef.get()
-  res.json({ sucesso: true, fechamento: docToEntity(fechamentoDoc), comandasResetadas })
+  res.json({
+    sucesso: true,
+    fechamento: docToEntity(fechamentoDoc),
+    comandasResetadas,
+    avisoComandas,
+  })
 })
 
 app.get('/caixa/relatorios', async (_, res) => {
