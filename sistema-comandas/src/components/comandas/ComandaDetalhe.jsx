@@ -86,31 +86,46 @@ export default function ComandaDetalhe({
     const payload = selecionadoEhFrios
       ? { pesoGramas, tipoFrio, ...(selecionadoEhFixo ? { valorTotal: valorTotalNum } : {}) }
       : { quantidade: quantidadeNum, ...(selecionadoEhFixo ? { valorTotal: valorTotalNum } : {}) }
-    const atualizada = await adicionarItem(comanda.id, produtoSelecionado, payload)
-    if (atualizada) {
-      playSomAcao()
-      onComandaAtualizada(atualizada)
-      setProdutoSelecionado('')
-      setQuantidade('1')
-      setValorTotal('')
-      setTipoFrio('Presunto')
-      setPesoFrioInput('100')
-      setPesoFrioUnidade('g')
-      setMostrarAdicionar(!isMobile) // no mobile continua aberto
-    } else {
+    try {
+      const atualizada = await adicionarItem(comanda.id, produtoSelecionado, payload)
+      if (atualizada) {
+        playSomAcao()
+        onComandaAtualizada(atualizada)
+        setProdutoSelecionado('')
+        setQuantidade('1')
+        setValorTotal('')
+        setTipoFrio('Presunto')
+        setPesoFrioInput('100')
+        setPesoFrioUnidade('g')
+        setMostrarAdicionar(!isMobile) // no mobile continua aberto
+      } else {
+        playSomErro()
+        toast.show('Não foi possível adicionar o item', 'error')
+      }
+    } catch (err) {
       playSomErro()
-      toast.show('Não foi possível adicionar o item', 'error')
+      toast.show(err?.message || 'Erro ao adicionar item. Verifique a conexão.', 'error')
     }
   }
 
   async function handleQuantidadeChange(itemId, novaQuantidade) {
-    const atualizada = await alterarQtd(comanda.id, itemId, novaQuantidade)
-    if (atualizada) onComandaAtualizada(atualizada)
+    try {
+      const atualizada = await alterarQtd(comanda.id, itemId, novaQuantidade)
+      if (atualizada) onComandaAtualizada(atualizada)
+    } catch (err) {
+      playSomErro()
+      toast.show(err?.message || 'Erro ao alterar quantidade', 'error')
+    }
   }
 
   async function handleRemover(itemId) {
-    const atualizada = await removerItem(comanda.id, itemId)
-    if (atualizada) onComandaAtualizada(atualizada)
+    try {
+      const atualizada = await removerItem(comanda.id, itemId)
+      if (atualizada) onComandaAtualizada(atualizada)
+    } catch (err) {
+      playSomErro()
+      toast.show(err?.message || 'Erro ao remover item', 'error')
+    }
   }
 
   async function handleEnviarParaCaixa() {
@@ -118,14 +133,19 @@ export default function ComandaDetalhe({
       toast.show('Adicione itens à comanda antes de enviar', 'warning')
       return
     }
-    const enviada = await enviarParaCaixa(comanda.id)
-    if (enviada) {
-      playSomAcao()
-      toast.show('Comanda enviada para o caixa!')
-      onEnviada()
-    } else {
+    try {
+      const enviada = await enviarParaCaixa(comanda.id)
+      if (enviada) {
+        playSomAcao()
+        toast.show('Comanda enviada para o caixa!')
+        onEnviada()
+      } else {
+        playSomErro()
+        toast.show('Erro ao enviar comanda', 'error')
+      }
+    } catch (err) {
       playSomErro()
-      toast.show('Erro ao enviar comanda', 'error')
+      toast.show(err?.message || 'Erro ao enviar comanda. Verifique a conexão.', 'error')
     }
   }
 
