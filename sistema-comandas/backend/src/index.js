@@ -218,7 +218,7 @@ async function apagarCaixasComSangrias() {
 }
 
 async function resetarComandasParaNovoDia() {
-  const tamanhoLote = 100 // Lotes menores para evitar RESOURCE_EXHAUSTED
+  const tamanhoLote = 300 // Plano Blaze: lotes maiores; Spark: use 100
   let totalResetadas = 0
   let lastDoc = null
 
