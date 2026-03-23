@@ -68,8 +68,13 @@ export default function ComandasPage() {
     const numeroFormatado = String(numeroInt).padStart(3, '0')
     setCriandoComanda(true)
     let nova = null
+    const timeoutMs = 25000
+    const criarComPromise = criarComanda(numeroFormatado)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('A requisição demorou muito. Tente novamente.')), timeoutMs)
+    )
     try {
-      nova = await criarComanda(numeroFormatado)
+      nova = await Promise.race([criarComPromise, timeoutPromise])
     } catch (error) {
       playSomErro()
       toast.show(error?.message || 'Não foi possível criar a comanda. Verifique a conexão.', 'error')
@@ -86,11 +91,7 @@ export default function ComandasPage() {
     setMostrarModalNovaComanda(false)
     setNumeroNovaComanda('')
     setComandaSelecionada(nova)
-    try {
-      await refreshComandas()
-    } catch {
-      // Mantém abertura da comanda mesmo se o refresh falhar.
-    }
+    refreshComandas().catch(() => {})
   }
 
   function abrirModalNovaComanda() {
