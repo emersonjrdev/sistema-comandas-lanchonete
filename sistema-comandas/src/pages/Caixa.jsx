@@ -72,13 +72,13 @@ export default function Caixa() {
   const [vendaAdicionarItem, setVendaAdicionarItem] = useState(null)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState('1')
-  const [valorUnitarioVenda, setValorUnitarioVenda] = useState('')
+  const [valorTotalVenda, setValorTotalVenda] = useState('')
   const [tipoFrioVenda, setTipoFrioVenda] = useState('Presunto')
   const [pesoFrioVendaInput, setPesoFrioVendaInput] = useState('100')
   const [pesoFrioVendaUnidade, setPesoFrioVendaUnidade] = useState('g')
   const [produtoComandaSelecionado, setProdutoComandaSelecionado] = useState('')
   const [quantidadeComanda, setQuantidadeComanda] = useState('1')
-  const [valorUnitarioComanda, setValorUnitarioComanda] = useState('')
+  const [valorTotalComanda, setValorTotalComanda] = useState('')
   const [tipoFrioComanda, setTipoFrioComanda] = useState('Presunto')
   const [pesoFrioComandaInput, setPesoFrioComandaInput] = useState('100')
   const [pesoFrioComandaUnidade, setPesoFrioComandaUnidade] = useState('g')
@@ -273,21 +273,21 @@ export default function Caixa() {
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioVendaInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioVendaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
     const estoqueNecessario = vendaEhFrios ? pesoGramas : quantidadeNum
-    const valorUnitarioNum = Number(String(valorUnitarioVenda || '').replace(',', '.'))
+    const valorTotalNum = Number(String(valorTotalVenda || '').replace(',', '.'))
     const produto = produtos.find((p) => String(p.id) === String(produtoSelecionado))
     if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
-    if (vendaEhFixo && (!Number.isFinite(valorUnitarioNum) || valorUnitarioNum <= 0)) {
+    if (vendaEhFixo && (!Number.isFinite(valorTotalNum) || valorTotalNum <= 0)) {
       playSomErro()
-      toast.show('Informe o valor unitário para produto fixo', 'error')
+      toast.show('Informe o valor total para produto fixo', 'error')
       return
     }
     const payload = vendaEhFrios
-      ? { pesoGramas, tipoFrio: tipoFrioVenda, ...(vendaEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
-      : { quantidade: quantidadeNum, ...(vendaEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
+      ? { pesoGramas, tipoFrio: tipoFrioVenda, ...(vendaEhFixo ? { valorTotal: valorTotalNum } : {}) }
+      : { quantidade: quantidadeNum, ...(vendaEhFixo ? { valorTotal: valorTotalNum } : {}) }
     const venda = await adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, payload)
     if (venda) {
       playSomVenda()
@@ -295,7 +295,7 @@ export default function Caixa() {
       setVendaAdicionarItem(null)
       setProdutoSelecionado('')
       setQuantidade('1')
-      setValorUnitarioVenda('')
+      setValorTotalVenda('')
       setTipoFrioVenda('Presunto')
       setPesoFrioVendaInput('100')
       setPesoFrioVendaUnidade('g')
@@ -310,7 +310,7 @@ export default function Caixa() {
     setComandaEdicaoId(null)
     setProdutoComandaSelecionado('')
     setQuantidadeComanda('1')
-    setValorUnitarioComanda('')
+    setValorTotalComanda('')
     setTipoFrioComanda('Presunto')
     setPesoFrioComandaInput('100')
     setPesoFrioComandaUnidade('g')
@@ -322,16 +322,16 @@ export default function Caixa() {
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioComandaInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioComandaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
     const estoqueNecessario = comandaEhFrios ? pesoGramas : quantidadeComandaNum
-    const valorUnitarioNum = Number(String(valorUnitarioComanda || '').replace(',', '.'))
+    const valorTotalNum = Number(String(valorTotalComanda || '').replace(',', '.'))
     const produto = produtos.find((p) => String(p.id) === String(produtoComandaSelecionado))
     if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
-    if (comandaEhFixo && (!Number.isFinite(valorUnitarioNum) || valorUnitarioNum <= 0)) {
+    if (comandaEhFixo && (!Number.isFinite(valorTotalNum) || valorTotalNum <= 0)) {
       playSomErro()
-      toast.show('Informe o valor unitário para produto fixo', 'error')
+      toast.show('Informe o valor total para produto fixo', 'error')
       return
     }
 
@@ -339,9 +339,9 @@ export default function Caixa() {
       ? {
           pesoGramas,
           tipoFrio: tipoFrioComanda,
-          ...(comandaEhFixo ? { valorUnitario: valorUnitarioNum } : {}),
+          ...(comandaEhFixo ? { valorTotal: valorTotalNum } : {}),
         }
-      : { quantidade: quantidadeComandaNum, ...(comandaEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
+      : { quantidade: quantidadeComandaNum, ...(comandaEhFixo ? { valorTotal: valorTotalNum } : {}) }
     const comandaAtualizada = await adicionarItem(
       comandaEdicaoId,
       produtoComandaSelecionado,
@@ -352,7 +352,7 @@ export default function Caixa() {
       await refresh()
       setProdutoComandaSelecionado('')
       setQuantidadeComanda('1')
-      setValorUnitarioComanda('')
+      setValorTotalComanda('')
       setTipoFrioComanda('Presunto')
       setPesoFrioComandaInput('100')
       setPesoFrioComandaUnidade('g')
@@ -706,7 +706,7 @@ export default function Caixa() {
                       setComandaEdicaoId(comanda.id)
                       setProdutoComandaSelecionado('')
                       setQuantidadeComanda('1')
-                      setValorUnitarioComanda('')
+                      setValorTotalComanda('')
                       setTipoFrioComanda('Presunto')
                       setPesoFrioComandaInput('100')
                       setPesoFrioComandaUnidade('g')
@@ -808,11 +808,11 @@ export default function Caixa() {
                         <input
                           type="text"
                           inputMode="decimal"
-                          value={valorUnitarioComanda}
+                          value={valorTotalComanda}
                           onChange={(e) =>
-                            setValorUnitarioComanda(e.target.value.replace(/[^\d,.]/g, ''))
+                            setValorTotalComanda(e.target.value.replace(/[^\d,.]/g, ''))
                           }
-                          placeholder="Valor unitário (R$)"
+                          placeholder="Valor total (R$)"
                           className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
                         />
                       )}
@@ -956,11 +956,11 @@ export default function Caixa() {
                       <input
                         type="text"
                         inputMode="decimal"
-                        value={valorUnitarioVenda}
+                        value={valorTotalVenda}
                         onChange={(e) =>
-                          setValorUnitarioVenda(e.target.value.replace(/[^\d,.]/g, ''))
+                          setValorTotalVenda(e.target.value.replace(/[^\d,.]/g, ''))
                         }
-                        placeholder="Valor unitário (R$)"
+                        placeholder="Valor total (R$)"
                         className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
                       />
                     )}
@@ -978,7 +978,7 @@ export default function Caixa() {
                         setVendaAdicionarItem(null)
                         setProdutoSelecionado('')
                         setQuantidade('1')
-                        setValorUnitarioVenda('')
+                        setValorTotalVenda('')
                         setTipoFrioVenda('Presunto')
                         setPesoFrioVendaInput('100')
                         setPesoFrioVendaUnidade('g')

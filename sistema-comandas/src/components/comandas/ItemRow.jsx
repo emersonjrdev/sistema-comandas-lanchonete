@@ -1,19 +1,24 @@
 export default function ItemRow({ item, onQuantidadeChange, onRemover }) {
   const subtotal = item.subtotal ?? item.preco * item.quantidade
   const itemPorPeso = item.unidadeMedida === 'gramas'
+  const itemValorTotal = item.valorManualTotal === true || item.unidadeMedida === 'valor_total'
 
   return (
     <div className="flex items-center gap-4 py-3 px-4 bg-white rounded-lg border border-amber-200/60 hover:border-amber-300 transition-colors">
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-amber-900 truncate">{item.nome}</p>
         <p className="text-sm text-stone-500">
-          R$ {item.preco.toFixed(2)} cada
+          {itemValorTotal ? `Valor total informado: R$ ${item.preco.toFixed(2)}` : `R$ ${item.preco.toFixed(2)} cada`}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {itemPorPeso ? (
           <span className="px-3 py-1 rounded-lg bg-amber-100 text-amber-900 font-mono font-bold tabular-nums">
             {Number(item.pesoGramas || 0)}g
+          </span>
+        ) : itemValorTotal ? (
+          <span className="px-3 py-1 rounded-lg bg-amber-100 text-amber-900 font-semibold">
+            Valor fechado
           </span>
         ) : (
           <>

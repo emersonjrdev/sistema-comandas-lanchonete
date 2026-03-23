@@ -21,7 +21,7 @@ export default function ComandaDetalhe({
   const [mostrarAdicionar, setMostrarAdicionar] = useState(isMobile || isTablet)
   const [produtoSelecionado, setProdutoSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState('1')
-  const [valorUnitario, setValorUnitario] = useState('')
+  const [valorTotal, setValorTotal] = useState('')
   const [tipoFrio, setTipoFrio] = useState('Presunto')
   const [pesoFrioInput, setPesoFrioInput] = useState('100')
   const [pesoFrioUnidade, setPesoFrioUnidade] = useState('g')
@@ -70,29 +70,29 @@ export default function ComandaDetalhe({
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
     const estoqueNecessario = selecionadoEhFrios ? pesoGramas : quantidadeNum
-    const valorUnitarioNum = Number(String(valorUnitario || '').replace(',', '.'))
+    const valorTotalNum = Number(String(valorTotal || '').replace(',', '.'))
 
     if (estoqueDisponivel(produtoSelecionado) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente para este produto', 'error')
       return
     }
-    if (selecionadoEhFixo && (!Number.isFinite(valorUnitarioNum) || valorUnitarioNum <= 0)) {
+    if (selecionadoEhFixo && (!Number.isFinite(valorTotalNum) || valorTotalNum <= 0)) {
       playSomErro()
-      toast.show('Informe o valor unitário para produto fixo', 'error')
+      toast.show('Informe o valor total para produto fixo', 'error')
       return
     }
 
     const payload = selecionadoEhFrios
-      ? { pesoGramas, tipoFrio, ...(selecionadoEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
-      : { quantidade: quantidadeNum, ...(selecionadoEhFixo ? { valorUnitario: valorUnitarioNum } : {}) }
+      ? { pesoGramas, tipoFrio, ...(selecionadoEhFixo ? { valorTotal: valorTotalNum } : {}) }
+      : { quantidade: quantidadeNum, ...(selecionadoEhFixo ? { valorTotal: valorTotalNum } : {}) }
     const atualizada = await adicionarItem(comanda.id, produtoSelecionado, payload)
     if (atualizada) {
       playSomAcao()
       onComandaAtualizada(atualizada)
       setProdutoSelecionado('')
       setQuantidade('1')
-      setValorUnitario('')
+      setValorTotal('')
       setTipoFrio('Presunto')
       setPesoFrioInput('100')
       setPesoFrioUnidade('g')
@@ -242,12 +242,12 @@ export default function ComandaDetalhe({
             </div>
             {selecionadoEhFixo && (
               <div>
-                <label className="block text-sm font-medium text-amber-900 mb-1">Valor unitário (R$)</label>
+                <label className="block text-sm font-medium text-amber-900 mb-1">Valor total (R$)</label>
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={valorUnitario}
-                  onChange={(e) => setValorUnitario(e.target.value.replace(/[^\d,.]/g, ''))}
+                  value={valorTotal}
+                  onChange={(e) => setValorTotal(e.target.value.replace(/[^\d,.]/g, ''))}
                   placeholder="0,00"
                   className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
                 />
@@ -268,7 +268,7 @@ export default function ComandaDetalhe({
                   setMostrarAdicionar(false)
                   setProdutoSelecionado('')
                   setQuantidade('1')
-                  setValorUnitario('')
+                  setValorTotal('')
                   setTipoFrio('Presunto')
                   setPesoFrioInput('100')
                   setPesoFrioUnidade('g')
