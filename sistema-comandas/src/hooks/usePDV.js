@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { getProdutos, getComandas, getResumoDashboard } from '../services/storage'
+import { useToast } from '../contexts/ToastContext'
 
 function useRefreshOnStorageUpdate(refresh) {
   useEffect(() => {
@@ -13,14 +14,22 @@ export { useCaixa } from './useCaixa'
 
 export function useProdutos() {
   const [produtos, setProdutos] = useState([])
+  const { show: toastShow } = useToast()
+  const toastRef = useRef(toastShow)
+  toastRef.current = toastShow
 
   const refresh = useCallback(async () => {
-    const data = await getProdutos()
-    setProdutos(data)
+    try {
+      const data = await getProdutos()
+      setProdutos(data)
+    } catch (err) {
+      setProdutos([])
+      toastRef.current(err?.message || 'Não foi possível carregar produtos. Verifique a conexão.', 'error')
+    }
   }, [])
 
   useEffect(() => {
-    refresh().catch(() => setProdutos([]))
+    refresh()
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)
@@ -29,14 +38,22 @@ export function useProdutos() {
 
 export function useComandas() {
   const [comandas, setComandas] = useState([])
+  const { show: toastShow } = useToast()
+  const toastRef = useRef(toastShow)
+  toastRef.current = toastShow
 
   const refresh = useCallback(async () => {
-    const data = await getComandas()
-    setComandas(data)
+    try {
+      const data = await getComandas()
+      setComandas(data)
+    } catch (err) {
+      setComandas([])
+      toastRef.current(err?.message || 'Não foi possível carregar comandas. Verifique a conexão.', 'error')
+    }
   }, [])
 
   useEffect(() => {
-    refresh().catch(() => setComandas([]))
+    refresh()
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)

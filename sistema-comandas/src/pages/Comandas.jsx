@@ -16,6 +16,7 @@ export default function ComandasPage() {
   const [comandaSelecionada, setComandaSelecionada] = useState(null)
   const [mostrarModalNovaComanda, setMostrarModalNovaComanda] = useState(false)
   const [numeroNovaComanda, setNumeroNovaComanda] = useState('')
+  const [criandoComanda, setCriandoComanda] = useState(false)
   const [busca, setBusca] = useState('')
   const bipadorRef = useRef(null)
   const { isMobile, isTablet } = useResponsive()
@@ -65,16 +66,20 @@ export default function ComandasPage() {
     }
 
     const numeroFormatado = String(numeroInt).padStart(3, '0')
+    setCriandoComanda(true)
     let nova = null
     try {
       nova = await criarComanda(numeroFormatado)
     } catch (error) {
       playSomErro()
-      toast.show(error?.message || 'Não foi possível criar a comanda', 'error')
+      toast.show(error?.message || 'Não foi possível criar a comanda. Verifique a conexão.', 'error')
       return
+    } finally {
+      setCriandoComanda(false)
     }
     if (!nova) {
       playSomErro()
+      toast.show('Não foi possível criar a comanda. Tente novamente.', 'error')
       return
     }
     playSomAcao()
@@ -275,10 +280,10 @@ export default function ComandasPage() {
               <button
                 type="button"
                 onClick={handleCriarNovaComanda}
-                disabled={!numeroNovaComanda.trim()}
+                disabled={!numeroNovaComanda.trim() || criandoComanda}
                 className="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 disabled:opacity-50"
               >
-                Criar
+                {criandoComanda ? 'Criando...' : 'Criar'}
               </button>
             </div>
           </div>
