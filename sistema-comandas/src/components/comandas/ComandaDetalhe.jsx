@@ -202,42 +202,53 @@ export default function ComandaDetalhe({
           <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200 space-y-3">
             <div>
               <label className="block text-sm font-medium text-amber-900 mb-1">
-                Buscar produto
+                Buscar e selecionar produto
               </label>
               <input
                 type="search"
-                value={buscaProduto}
-                onChange={(e) => setBuscaProduto(e.target.value)}
+                value={produtoSelecionado ? (produtos.find((p) => String(p.id) === String(produtoSelecionado))?.nome ?? '') : buscaProduto}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setProdutoSelecionado('')
+                  setBuscaProduto(v)
+                }}
+                onFocus={() => produtoSelecionado && setProdutoSelecionado('')}
                 placeholder="Digite o nome do produto..."
                 className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
               />
+              {produtosFiltrados.length > 0 && !produtoSelecionado && (buscaProduto.length > 0 || produtosFiltrados.length <= 10) && (
+                <div className="mt-1 max-h-48 overflow-y-auto rounded-lg border-2 border-amber-200 bg-white shadow-sm">
+                  {produtosFiltrados.map((p) => {
+                    const disponivel = p.fixo === true || estoqueDisponivel(p.id) >= 1
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          if (disponivel) {
+                            setProdutoSelecionado(p.id)
+                            setBuscaProduto('')
+                          }
+                        }}
+                        disabled={!disponivel}
+                        className={`block w-full text-left px-4 py-2 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed ${disponivel ? 'cursor-pointer' : ''}`}
+                      >
+                        {p.nome}{' '}
+                        {p.fixo === true
+                          ? '(valor no caixa)'
+                          : `- R$ ${Number(p.preco).toFixed(2)} ${estoqueDisponivel(p.id) < 1 ? '(sem estoque)' : ''}`}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {termoBusca && produtosFiltrados.length === 0 && (
+                <p className="mt-1 text-sm text-stone-500">Nenhum produto encontrado</p>
+              )}
             </div>
+            {produtoSelecionado && (
+            <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-amber-900 mb-1">
-                  Produto
-                </label>
-                <select
-                  value={produtoSelecionado}
-                  onChange={(e) => setProdutoSelecionado(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
-                >
-                  <option value="">Selecione...</option>
-                  {produtosFiltrados.map((p) => (
-                    <option key={p.id} value={p.id} disabled={p.fixo !== true && estoqueDisponivel(p.id) < 1}>
-                      {p.nome}{' '}
-                      {p.fixo === true
-                        ? '(valor no caixa)'
-                        : `- R$ ${Number(p.preco).toFixed(2)} ${estoqueDisponivel(p.id) < 1 ? '(sem estoque)' : ''}`}
-                    </option>
-                  ))}
-                  {produtosFiltrados.length === 0 && (
-                    <option value="" disabled>
-                      {termoBusca ? 'Nenhum produto encontrado' : 'Nenhum produto com estoque'}
-                    </option>
-                  )}
-                </select>
-              </div>
               {selecionadoEhFrios ? (
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-amber-900 mb-1">Tipo de frio</label>
@@ -307,10 +318,24 @@ export default function ComandaDetalhe({
               <button
                 type="button"
                 onClick={handleAdicionarProduto}
-                disabled={!produtoSelecionado}
-                className="px-4 py-3 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                className="px-4 py-3 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 touch-manipulation"
               >
                 Adicionar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setProdutoSelecionado('')
+                  setBuscaProduto('')
+                  setQuantidade('1')
+                  setValorTotal('')
+                  setTipoFrio('Presunto')
+                  setPesoFrioInput('100')
+                  setPesoFrioUnidade('g')
+                }}
+                className="px-4 py-3 rounded-lg bg-stone-200 text-stone-700 font-semibold hover:bg-stone-300 touch-manipulation"
+              >
+                Trocar produto
               </button>
               <button
                 type="button"
@@ -329,6 +354,8 @@ export default function ComandaDetalhe({
                 Cancelar
               </button>
             </div>
+            </>
+            )}
           </div>
         )}
 
