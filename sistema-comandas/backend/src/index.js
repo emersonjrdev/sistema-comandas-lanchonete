@@ -110,6 +110,25 @@ function toIsoString(value) {
   return parsed.toISOString()
 }
 
+function formatarDataSp(value = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  return formatter.format(value)
+}
+
+function obterHoraSp(value = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    hour12: false,
+  })
+  return Number(formatter.format(value)) || 0
+}
+
 function normalizarNomeProduto(valor) {
   return String(valor || '')
     .normalize('NFD')
@@ -291,7 +310,49 @@ async function getCaixaStatus() {
     valorInicial: Number(data.valorInicial || 0),
     aberturaEm: data.aberturaEm || null,
     caixaId: data.caixaId || null,
+    ultimaViradaCaixaEm: data.ultimaViradaCaixaEm || null,
+    ultimaViradaCaixaData: data.ultimaViradaCaixaData || null,
   }
+}
+
+function precisaVirarCaixaAgora(status, agora = new Date()) {
+  const horaAtual = obterHoraSp(agora)
+  const hoje = formatarDataSp(agora)
+  const ontemDate = new Date(agora.getTime() - 24 * 60 * 60 * 1000)
+  const ontem = formatarDataSp(ontemDate)
+  const alvoVirada = horaAtual >= 23 ? hoje : ontem
+  const ultimaData = String(status?.ultimaViradaCaixaData || '')
+  return ultimaData !== alvoVirada
+}
+
+function obterDataAlvoVirada(agora = new Date()) {
+  const horaAtual = obterHoraSp(agora)
+  if (horaAtual >= 23) return formatarDataSp(agora)
+  return formatarDataSp(new Date(agora.getTime() - 24 * 60 * 60 * 1000))
+}
+
+async function virarCaixaAutomaticamenteSeNecessario() {
+  const status = await getCaixaStatus()
+  if (!precisaVirarCaixaAgora(status)) return status
+
+  const agora = new Date()
+  const agoraIso = new Date().toISOString()
+  const dataVirada = obterDataAlvoVirada(agora)
+  await caixaConfigRef.set(
+    {
+      aberto: false,
+      valorInicial: 0,
+      aberturaEm: null,
+      caixaId: null,
+      ultimaViradaCaixaEm: agoraIso,
+      ultimaViradaCaixaData: dataVirada,
+      updated_at: agoraIso,
+    },
+    { merge: true }
+  )
+
+  await reabrirComandasAguardandoPagamento()
+  return getCaixaStatus()
 }
 
 async function listarVendasHistorico() {
@@ -968,16 +1029,19 @@ app.get('/caixa/historico', async (_, res) => {
 })
 
 app.get('/caixa/status', async (_, res) => {
-  const status = await getCaixaStatus()
+  const status = await virarCaixaAutomaticamenteSeNecessario()
   res.json(status)
 })
 
 app.get('/caixa/totais-hoje', async (_, res) => {
-  const caixaAtual = await getCaixaStatus()
+  const caixaAtual = await virarCaixaAutomaticamenteSeNecessario()
   const vendasBase =
     caixaAtual.aberto && caixaAtual.caixaId
       ? await listarVendasDoCaixa(caixaAtual.caixaId)
-      : (await listarVendasHistorico()).filter((v) => isHoje(v.data))
+      : (await listarVendasHistorico()).filter((v) => {
+          if (!caixaAtual.ultimaViradaCaixaEm) return isHoje(v.data)
+          return new Date(v.data || 0) >= new Date(caixaAtual.ultimaViradaCaixaEm)
+        })
   const totais = somarTotais(vendasBase)
   const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
   const dinheiroLiquido = Number(totais.totalDinheiro || 0) - Number(totalSangrias || 0)
@@ -1305,10 +1369,12 @@ app.get('/dashboard/resumo', async (_, res) => {
   const comandasAbertasSnap = await comandasCol.where('status', '==', 'aberta').get()
   const comandasAguardandoSnap = await comandasCol.where('status', '==', 'aguardando_pagamento').get()
   const vendas = await listarVendasHistorico()
-  const vendasHoje = vendas.filter((v) => isHoje(v.data))
+  const caixaAtual = await virarCaixaAutomaticamenteSeNecessario()
+  const vendasHoje = caixaAtual.ultimaViradaCaixaEm
+    ? vendas.filter((v) => new Date(v.data || 0) >= new Date(caixaAtual.ultimaViradaCaixaEm))
+    : vendas.filter((v) => isHoje(v.data))
   const totaisHoje = somarTotais(vendasHoje)
   const totalHistorico = vendas.reduce((acc, v) => acc + Number(v.total || 0), 0)
-  const caixaAtual = await getCaixaStatus()
   const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
   const dinheiroLiquido = Number(totaisHoje.totalDinheiro || 0) - Number(totalSangrias || 0)
 
