@@ -6,6 +6,7 @@ import {
   excluirProduto,
 } from '../services/storage'
 import { playSomAcao, playSomErro } from '../utils/sons'
+import { formatarCentavosInput, moedaInputParaNumero, numeroParaMoedaInput } from '../utils/moeda'
 
 export default function Produtos() {
   const [produtos, refreshProdutos] = useProdutos()
@@ -19,21 +20,6 @@ export default function Produtos() {
     return String(valor || '').replace(/\D/g, '')
   }
 
-  function sanitizarDecimal(valor) {
-    const limpo = String(valor || '').replace(/[^\d,.]/g, '')
-    let resultado = ''
-    let separadorUsado = false
-    for (const ch of limpo) {
-      if ((ch === ',' || ch === '.') && !separadorUsado) {
-        resultado += ch
-        separadorUsado = true
-        continue
-      }
-      if (/\d/.test(ch)) resultado += ch
-    }
-    return resultado
-  }
-
   function limparForm() {
     setFormNome('')
     setFormPreco('')
@@ -45,7 +31,7 @@ export default function Produtos() {
   async function handleSalvar(e) {
     e.preventDefault()
     const nome = formNome.trim()
-    const preco = parseFloat(String(formPreco).replace(',', '.'))
+    const preco = moedaInputParaNumero(formPreco)
     const ehFixo = editando?.fixo === true
     if (!nome || (!ehFixo && (isNaN(preco) || preco < 0))) {
       playSomErro()
@@ -72,7 +58,7 @@ export default function Produtos() {
   function handleEditar(produto) {
     setEditando(produto)
     setFormNome(produto.nome)
-    setFormPreco(String(produto.preco))
+    setFormPreco(numeroParaMoedaInput(produto.preco))
     setFormEstoque(String(produto.estoque ?? 0))
     setMostrarForm(true)
   }
@@ -149,7 +135,7 @@ export default function Produtos() {
                 type="text"
                 inputMode="decimal"
                 value={formPreco}
-                onChange={(e) => setFormPreco(sanitizarDecimal(e.target.value))}
+                onChange={(e) => setFormPreco(formatarCentavosInput(e.target.value))}
                 placeholder={editando?.fixo === true ? 'Valor informado no caixa' : '0,00'}
                 className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900 font-mono tabular-nums"
                 required={editando?.fixo !== true}

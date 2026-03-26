@@ -8,6 +8,7 @@ import {
 } from '../../services/storage'
 import { useToast } from '../../contexts/ToastContext'
 import { playSomAcao, playSomErro } from '../../utils/sons'
+import { formatarCentavosInput, moedaInputParaNumero } from '../../utils/moeda'
 
 export default function ComandaDetalhe({
   comanda,
@@ -85,7 +86,7 @@ export default function ComandaDetalhe({
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
     const estoqueNecessario = selecionadoEhFrios ? pesoGramas : quantidadeNum
-    const valorTotalNum = Number(String(valorTotal || '').replace(',', '.'))
+    const valorTotalNum = moedaInputParaNumero(valorTotal)
 
     if (estoqueDisponivel(produtoSelecionado) < estoqueNecessario) {
       playSomErro()
@@ -308,7 +309,7 @@ export default function ComandaDetalhe({
                   type="text"
                   inputMode="decimal"
                   value={valorTotal}
-                  onChange={(e) => setValorTotal(e.target.value.replace(/[^\d,.]/g, ''))}
+                  onChange={(e) => setValorTotal(formatarCentavosInput(e.target.value))}
                   placeholder="0,00"
                   className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
                 />

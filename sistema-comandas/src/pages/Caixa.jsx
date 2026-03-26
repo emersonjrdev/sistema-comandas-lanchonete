@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useCaixa } from '../hooks/useCaixa'
 import { useProdutos } from '../hooks/usePDV'
 import {
@@ -11,6 +11,7 @@ import {
 import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
 import { playSomVenda, playSomErro } from '../utils/sons'
+import { formatarCentavosInput, moedaInputParaNumero } from '../utils/moeda'
 import ModalPagamento from '../components/ModalPagamento'
 import ItemRow from '../components/comandas/ItemRow'
 
@@ -86,6 +87,19 @@ export default function Caixa() {
   const [motivoSangria, setMotivoSangria] = useState('')
   const [registrandoSangria, setRegistrandoSangria] = useState(false)
   const toast = useToast()
+
+  useEffect(() => {
+    function handleAtalhoSecretoExcluirDadosCaixa(event) {
+      // Atalho secreto: Ctrl + Shift + Alt + Delete
+      if (event.ctrlKey && event.shiftKey && event.altKey && event.key === 'Delete') {
+        event.preventDefault()
+        handleLimparDadosCaixa()
+      }
+    }
+
+    window.addEventListener('keydown', handleAtalhoSecretoExcluirDadosCaixa)
+    return () => window.removeEventListener('keydown', handleAtalhoSecretoExcluirDadosCaixa)
+  }, [])
 
   const { totalHoje, vendasHoje } = useMemo(() => {
     const doDia = vendas.filter((v) => isHoje(v.data))
@@ -276,7 +290,7 @@ export default function Caixa() {
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioVendaInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioVendaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
     const estoqueNecessario = vendaEhFrios ? pesoGramas : quantidadeNum
-    const valorTotalNum = Number(String(valorTotalVenda || '').replace(',', '.'))
+    const valorTotalNum = moedaInputParaNumero(valorTotalVenda)
     const produto = produtos.find((p) => String(p.id) === String(produtoSelecionado))
     if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
@@ -325,7 +339,7 @@ export default function Caixa() {
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioComandaInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioComandaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
     const estoqueNecessario = comandaEhFrios ? pesoGramas : quantidadeComandaNum
-    const valorTotalNum = Number(String(valorTotalComanda || '').replace(',', '.'))
+    const valorTotalNum = moedaInputParaNumero(valorTotalComanda)
     const produto = produtos.find((p) => String(p.id) === String(produtoComandaSelecionado))
     if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
@@ -439,13 +453,6 @@ export default function Caixa() {
             Fechar caixa
           </button>
         )}
-        <button
-          type="button"
-          onClick={handleLimparDadosCaixa}
-          className="w-full sm:w-auto px-4 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700"
-        >
-          Excluir dados do caixa
-        </button>
       </div>
 
       {mostrarAbertura && (
@@ -812,9 +819,7 @@ export default function Caixa() {
                           type="text"
                           inputMode="decimal"
                           value={valorTotalComanda}
-                          onChange={(e) =>
-                            setValorTotalComanda(e.target.value.replace(/[^\d,.]/g, ''))
-                          }
+                          onChange={(e) => setValorTotalComanda(formatarCentavosInput(e.target.value))}
                           placeholder="Valor total (R$)"
                           className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
                         />
@@ -960,9 +965,7 @@ export default function Caixa() {
                         type="text"
                         inputMode="decimal"
                         value={valorTotalVenda}
-                        onChange={(e) =>
-                          setValorTotalVenda(e.target.value.replace(/[^\d,.]/g, ''))
-                        }
+                        onChange={(e) => setValorTotalVenda(formatarCentavosInput(e.target.value))}
                         placeholder="Valor total (R$)"
                         className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
                       />
