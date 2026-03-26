@@ -74,6 +74,25 @@ export function useCaixa() {
 
   useRefreshOnStorageUpdate(refresh)
 
+  useEffect(() => {
+    const intervaloMs = 2000
+    const intervalId = window.setInterval(() => {
+      refresh().catch(() => {})
+    }, intervaloMs)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refresh().catch(() => {})
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [refresh])
+
   return [
     vendas,
     refresh,

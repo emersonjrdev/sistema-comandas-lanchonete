@@ -1,13 +1,20 @@
 import { useMemo, useState } from 'react'
 import { useEstoque } from '../hooks/useEstoque'
 import { useProdutos } from '../hooks/usePDV'
+import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
+import { playSomAcao, playSomErro } from '../utils/sons'
 
 export default function Estoque() {
-  const [produtos, estoqueBaixo, refresh, { setEstoque, incrementarEstoque }] = useEstoque()
+  const [produtos, estoqueBaixo, refresh, { setEstoque, incrementarEstoque, limparEstoqueNaoFixos }] =
+    useEstoque()
   const [produtosAll] = useProdutos()
+  const { usuario, isAdmin } = useAuth()
+  const toast = useToast()
   const [buscaProduto, setBuscaProduto] = useState('')
   const [editando, setEditando] = useState(null)
   const [valorEntrada, setValorEntrada] = useState('')
+  const [limpandoEstoque, setLimpandoEstoque] = useState(false)
 
   function sanitizarInteiro(valor) {
     return String(valor || '').replace(/\D/g, '')
@@ -41,6 +48,35 @@ export default function Estoque() {
     }
   }
 
+  async function handleLimparEstoqueNaoFixos() {
+    if (!isAdmin || !usuario?.id || limpandoEstoque) return
+
+    const confirmou = window.confirm(
+      'Isso vai zerar o estoque de todos os produtos não fixos. Deseja continuar?'
+    )
+    if (!confirmou) return
+
+    const confirmouNovamente = window.confirm(
+      'Confirma LIMPAR TODO O ESTOQUE (exceto produtos fixos)? Essa ação não pode ser desfeita.'
+    )
+    if (!confirmouNovamente) return
+
+    setLimpandoEstoque(true)
+    try {
+      const result = await limparEstoqueNaoFixos(usuario.id)
+      if (result?.sucesso) {
+        playSomAcao()
+        await refresh()
+        toast.show(`Estoque limpo! Produtos atualizados: ${Number(result.atualizados || 0)}`)
+      } else {
+        playSomErro()
+        toast.show(result?.erro || 'Não foi possível limpar o estoque', 'error')
+      }
+    } finally {
+      setLimpandoEstoque(false)
+    }
+  }
+
   const produtosParaExibir = useMemo(() => {
     const base =
       produtos.length > 0 ? [...produtos] : produtosAll.map((p) => ({ ...p, estoque: p.estoque ?? 0 }))
@@ -70,6 +106,21 @@ export default function Estoque() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-amber-900 mb-6">Estoque</h2>
+
+      {isAdmin && (
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={handleLimparEstoqueNaoFixos}
+            disabled={limpandoEstoque}
+            className="w-full sm:w-auto px-4 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50"
+          >
+            {limpandoEstoque
+              ? 'Limpando estoque...'
+              : 'Limpar todo estoque (manter produtos fixos)'}
+          </button>
+        </div>
+      )}
 
       {estoqueBaixoOrdenado.length > 0 && (
         <div className="mb-6 p-4 rounded-xl bg-amber-100 border-2 border-amber-300">

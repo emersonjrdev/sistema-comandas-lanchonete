@@ -4,6 +4,7 @@ import {
   getProdutosEstoqueBaixo,
   setEstoque,
   incrementarEstoque,
+  limparEstoqueNaoFixos,
 } from '../services/estoqueService'
 
 function useRefreshOnStorageUpdate(refresh) {
@@ -36,5 +37,5 @@ export function useEstoque() {
 
   useRefreshOnStorageUpdate(refresh)
 
-  return [produtos, estoqueBaixo, refresh, { setEstoque, incrementarEstoque }]
+  return [produtos, estoqueBaixo, refresh, { setEstoque, incrementarEstoque, limparEstoqueNaoFixos }]
 }

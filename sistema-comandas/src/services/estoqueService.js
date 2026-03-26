@@ -53,6 +53,22 @@ export async function setEstoque(produtoId, quantidade) {
   }
 }
 
+export async function limparEstoqueNaoFixos(operadorId) {
+  try {
+    const operadorIdNorm = String(operadorId || '').trim()
+    const query = operadorIdNorm ? `?operadorId=${encodeURIComponent(operadorIdNorm)}` : ''
+    const result = await apiRequest(`/estoque/limpar-nao-fixos${query}`, {
+      method: 'PATCH',
+      body: operadorIdNorm ? { operadorId: operadorIdNorm } : {},
+      headers: operadorIdNorm ? { 'x-operador-id': operadorIdNorm } : {},
+    })
+    window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+    return result
+  } catch (error) {
+    return { sucesso: false, erro: error.message }
+  }
+}
+
 export async function temEstoque(produtoId, quantidade = 1) {
   const produtos = await getProdutosComEstoque()
   const p = produtos.find((x) => String(x.id) === String(produtoId))

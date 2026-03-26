@@ -586,6 +586,41 @@ app.patch('/produtos/:id/estoque', async (req, res) => {
   res.json(docToEntity(atualizado))
 })
 
+app.patch('/estoque/limpar-nao-fixos', async (req, res) => {
+  try {
+    const operadorIdRaw =
+      req.body?.operadorId ||
+      req.query?.operadorId ||
+      req.headers['x-operador-id']
+    const operadorIdNorm = String(operadorIdRaw || '').trim()
+    if (!operadorIdNorm) return res.status(400).json({ error: 'operadorId é obrigatório' })
+
+    const operadorDoc = await usuariosCol.doc(operadorIdNorm).get()
+    if (!operadorDoc.exists) return res.status(403).json({ error: 'Operador inválido' })
+    const operador = docToEntity(operadorDoc)
+    if (String(operador.perfil || '') !== 'admin') {
+      return res.status(403).json({ error: 'Apenas admin pode limpar o estoque' })
+    }
+
+    const snap = await produtosCol.where('fixo', '!=', true).get()
+    if (snap.empty) return res.json({ sucesso: true, atualizados: 0 })
+
+    const lote = db.batch()
+    const agora = new Date().toISOString()
+    for (const doc of snap.docs) {
+      lote.update(doc.ref, {
+        estoque: 0,
+        updated_at: agora,
+      })
+    }
+    await lote.commit()
+
+    return res.json({ sucesso: true, atualizados: snap.size })
+  } catch (error) {
+    return res.status(500).json({ sucesso: false, error: error.message || 'Falha ao limpar estoque' })
+  }
+})
+
 app.delete('/produtos/:id', async (req, res) => {
   const { id } = req.params
   const ref = produtosCol.doc(String(id))
