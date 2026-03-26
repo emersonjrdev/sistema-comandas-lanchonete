@@ -310,6 +310,7 @@ export default function ComandaDetalhe({
                   inputMode="decimal"
                   value={valorTotal}
                   onChange={(e) => setValorTotal(formatarCentavosInput(e.target.value))}
+                  onBlur={(e) => setValorTotal(formatarCentavosInput(e.target.value))}
                   placeholder="0,00"
                   className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
                 />

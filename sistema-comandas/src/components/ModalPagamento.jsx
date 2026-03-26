@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { formatarCentavosInput, moedaInputParaNumero } from '../utils/moeda'
 
 const METODOS = {
   D: { label: 'Dinheiro', key: 'D' },
@@ -12,24 +13,9 @@ export default function ModalPagamento({ total, onConfirmar, onCancelar }) {
   const [erro, setErro] = useState('')
   const inputRef = useRef(null)
 
-  function normalizarDecimalInput(valor) {
-    const limpo = String(valor || '').replace(/[^\d,.]/g, '')
-    let resultado = ''
-    let separadorUsado = false
-    for (const ch of limpo) {
-      if ((ch === ',' || ch === '.') && !separadorUsado) {
-        resultado += ch
-        separadorUsado = true
-        continue
-      }
-      if (/\d/.test(ch)) resultado += ch
-    }
-    return resultado
-  }
-
   const troco =
     metodo === 'D' && valorRecebido
-      ? Math.max(0, (parseFloat(valorRecebido.replace(',', '.')) || 0) - total)
+      ? Math.max(0, moedaInputParaNumero(valorRecebido) - total)
       : 0
 
   useEffect(() => {
@@ -48,7 +34,7 @@ export default function ModalPagamento({ total, onConfirmar, onCancelar }) {
     const metodoLabel = METODOS[metodo]?.label || metodo
 
     if (metodo === 'D') {
-      const v = parseFloat(valorRecebido.replace(',', '.')) || 0
+      const v = moedaInputParaNumero(valorRecebido)
       if (v < total) {
         setErro('Valor recebido menor que o total')
         return
@@ -132,7 +118,7 @@ export default function ModalPagamento({ total, onConfirmar, onCancelar }) {
               type="text"
               inputMode="decimal"
               value={valorRecebido}
-              onChange={(e) => setValorRecebido(normalizarDecimalInput(e.target.value))}
+              onChange={(e) => setValorRecebido(formatarCentavosInput(e.target.value))}
               placeholder="0,00"
               className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900 font-mono text-xl"
             />

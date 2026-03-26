@@ -820,6 +820,7 @@ export default function Caixa() {
                           inputMode="decimal"
                           value={valorTotalComanda}
                           onChange={(e) => setValorTotalComanda(formatarCentavosInput(e.target.value))}
+                          onBlur={(e) => setValorTotalComanda(formatarCentavosInput(e.target.value))}
                           placeholder="Valor total (R$)"
                           className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
                         />
@@ -966,6 +967,7 @@ export default function Caixa() {
                         inputMode="decimal"
                         value={valorTotalVenda}
                         onChange={(e) => setValorTotalVenda(formatarCentavosInput(e.target.value))}
+                        onBlur={(e) => setValorTotalVenda(formatarCentavosInput(e.target.value))}
                         placeholder="Valor total (R$)"
                         className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
                       />
