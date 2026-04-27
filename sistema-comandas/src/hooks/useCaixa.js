@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getComandasAguardandoPagamento } from '../services/storage'
+import { getComandas, getComandasAguardandoPagamento } from '../services/storage'
 import { listarSangrias, getTotalSangrias, registrarSangria } from '../services/sangriaService'
 import {
   getTotaisHoje,
@@ -33,13 +33,19 @@ export function useCaixa() {
   })
 
   const refresh = useCallback(async () => {
-    const [pendentes, totaisHoje, caixa] = await Promise.all([
+    const [abertas, pendentes, totaisHoje, caixa] = await Promise.all([
+      getComandas(),
       getComandasAguardandoPagamento(),
       getTotaisHoje(),
       getCaixaAtual(),
     ])
+    const todasParaCaixa = [...pendentes, ...abertas.filter((c) => c?.status === 'aberta')]
+    const porId = new Map()
+    for (const comanda of todasParaCaixa) {
+      if (comanda?.id) porId.set(comanda.id, comanda)
+    }
     setVendas(totaisHoje?.vendasHoje || [])
-    setComandasPendentes(pendentes)
+    setComandasPendentes(Array.from(porId.values()))
     setCaixaAberto(caixa?.aberto === true)
     setTotais(totaisHoje)
     setCaixaAtual(caixa)

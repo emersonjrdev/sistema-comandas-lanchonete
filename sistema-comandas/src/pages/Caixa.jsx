@@ -6,6 +6,7 @@ import {
   adicionarItemAVenda,
   alterarQtd,
   confirmarPagamento,
+  enviarParaCaixa,
   removerItem,
 } from '../services/storage'
 import { useToast } from '../contexts/ToastContext'
@@ -224,6 +225,14 @@ export default function Caixa() {
 
   async function handleConfirmarPagamento(metodoPagamento, valorRecebido, troco) {
     if (!comandaPagamento) return
+    if (comandaPagamento.status === 'aberta') {
+      const enviada = await enviarParaCaixa(comandaPagamento.id)
+      if (!enviada) {
+        playSomErro()
+        toast.show('Não foi possível enviar comanda para o caixa', 'error')
+        return
+      }
+    }
     const venda = await confirmarPagamento(
       comandaPagamento.id,
       metodoPagamento,
@@ -573,6 +582,12 @@ export default function Caixa() {
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
+          <p className="text-sm font-medium text-stone-500 mb-1">Valor inicial do caixa</p>
+          <p className="text-2xl font-bold text-amber-800 tabular-nums">
+            R$ {Number(caixa.valorInicial || 0).toFixed(2)}
+          </p>
+        </div>
+        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Vendas em dinheiro (caixa atual)</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
             R$ {totalVendasDinheiro.toFixed(2)}
@@ -662,12 +677,12 @@ export default function Caixa() {
 
       {/* Pendentes de Pagamento */}
       <h3 className="text-lg font-semibold text-amber-900 mb-4">
-        Pendentes de Pagamento
+        Comandas no Caixa
       </h3>
       <div className="mb-8 space-y-4">
         {comandasPendentes.length === 0 ? (
           <div className="py-8 text-center bg-white rounded-xl border-2 border-dashed border-amber-200">
-            <p className="text-stone-500">Nenhuma comanda aguardando pagamento.</p>
+            <p className="text-stone-500">Nenhuma comanda disponível no caixa.</p>
           </div>
         ) : (
           comandasPendentes.map((comanda) => {
@@ -687,6 +702,9 @@ export default function Caixa() {
                   <h4 className="text-lg font-bold text-amber-900">
                     {comanda.identificacao}
                   </h4>
+                  <p className="text-xs text-stone-500 mt-1">
+                    Status: {comanda.status === 'aguardando_pagamento' ? 'Aguardando pagamento' : 'Aberta'}
+                  </p>
                   {comanda.itens && comanda.itens.length > 0 && (
                     <ul className="mt-2 text-sm text-stone-600 space-y-0.5">
                       {comanda.itens.slice(0, 3).map((item) => (
@@ -730,7 +748,7 @@ export default function Caixa() {
                     onClick={() => setComandaPagamento(comanda)}
                     className="w-full sm:w-auto px-6 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700"
                   >
-                    Cobrar
+                    {comanda.status === 'aberta' ? 'Enviar e cobrar' : 'Cobrar'}
                   </button>
                 </div>
 
