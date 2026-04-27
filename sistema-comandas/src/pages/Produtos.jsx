@@ -12,6 +12,7 @@ export default function Produtos() {
   const [produtos, refreshProdutos] = useProdutos()
   const [editando, setEditando] = useState(null)
   const [mostrarForm, setMostrarForm] = useState(false)
+  const [buscaProduto, setBuscaProduto] = useState('')
   const [formNome, setFormNome] = useState('')
   const [formPreco, setFormPreco] = useState('')
   const [formEstoque, setFormEstoque] = useState('0')
@@ -83,6 +84,22 @@ export default function Produtos() {
     }
   }
 
+  const termoBusca = String(buscaProduto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+
+  const produtosFiltrados = termoBusca
+    ? produtos.filter((produto) =>
+        String(produto?.nome || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .includes(termoBusca)
+      )
+    : produtos
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -98,6 +115,21 @@ export default function Produtos() {
           + Cadastrar Produto
         </button>
       </div>
+
+      {produtos.length > 0 && (
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-amber-900 mb-1">
+            Buscar produto para editar
+          </label>
+          <input
+            type="search"
+            value={buscaProduto}
+            onChange={(e) => setBuscaProduto(e.target.value)}
+            placeholder="Digite o nome do produto..."
+            className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900"
+          />
+        </div>
+      )}
 
       {mostrarForm && (
         <form
@@ -198,7 +230,7 @@ export default function Produtos() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {produtos.map((produto) => (
+          {produtosFiltrados.map((produto) => (
             <div
               key={produto.id}
               className="p-5 rounded-xl bg-white border-2 border-amber-200 hover:border-amber-300 transition-colors"
@@ -244,6 +276,11 @@ export default function Produtos() {
             </div>
           ))}
         </div>
+      )}
+      {produtos.length > 0 && produtosFiltrados.length === 0 && termoBusca && (
+        <p className="mt-4 text-center text-stone-500">
+          Nenhum produto encontrado para &quot;{buscaProduto}&quot;.
+        </p>
       )}
     </div>
   )
