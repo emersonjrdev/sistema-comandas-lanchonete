@@ -1,6 +1,10 @@
+import { useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useRelatorios } from '../hooks/useRelatorios'
+import { useToast } from '../contexts/ToastContext'
+import { limparDadosCaixa } from '../services/caixaService'
+import { playSomErro, playSomVenda } from '../utils/sons'
 
 function formatarData(dataStr) {
   if (!dataStr) return '-'
@@ -16,9 +20,45 @@ function formatarData(dataStr) {
 
 export default function RelatorioCaixa() {
   const { isAdmin } = useAuth()
-  const [relatorios] = useRelatorios()
+  const [relatorios, , refresh] = useRelatorios()
+  const toast = useToast()
 
   if (!isAdmin) return <Navigate to="/" replace />
+
+  async function handleLimparDadosEscondido() {
+    const confirmou = window.confirm(
+      'Isso vai excluir o histórico de vendas e relatórios de fechamento do caixa. Deseja continuar?'
+    )
+    if (!confirmou) return
+
+    const confirmouNovamente = window.confirm(
+      'Confirma EXCLUIR os dados do caixa agora? Essa ação não pode ser desfeita.'
+    )
+    if (!confirmouNovamente) return
+
+    const resultado = await limparDadosCaixa()
+    if (resultado?.sucesso) {
+      playSomVenda()
+      await refresh()
+      toast.show('Dados do caixa excluídos com sucesso!')
+    } else {
+      playSomErro()
+      toast.show(resultado?.erro || 'Erro ao excluir dados do caixa', 'error')
+    }
+  }
+
+  useEffect(() => {
+    function handleAtalhoSecretoRelatorio(event) {
+      // Atalho secreto no Relatorio: Ctrl + Shift + Alt + Backspace
+      if (event.ctrlKey && event.shiftKey && event.altKey && event.key === 'Backspace') {
+        event.preventDefault()
+        handleLimparDadosEscondido()
+      }
+    }
+
+    window.addEventListener('keydown', handleAtalhoSecretoRelatorio)
+    return () => window.removeEventListener('keydown', handleAtalhoSecretoRelatorio)
+  }, [])
 
   const ordenados = [...relatorios].sort((a, b) => new Date(b.data) - new Date(a.data))
 
