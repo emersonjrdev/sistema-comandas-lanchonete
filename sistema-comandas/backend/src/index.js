@@ -333,6 +333,7 @@ function obterDataAlvoVirada(agora = new Date()) {
 
 async function virarCaixaAutomaticamenteSeNecessario() {
   const status = await getCaixaStatus()
+  if (status.aberto) return status
   if (!precisaVirarCaixaAgora(status)) return status
 
   const agora = new Date()
@@ -1053,7 +1054,9 @@ app.post('/caixa/abrir', async (req, res) => {
   const caixaAtual = await getCaixaStatus()
   if (caixaAtual.aberto) return res.status(400).json({ error: 'Caixa já está aberto' })
 
-  const now = new Date().toISOString()
+  const nowDate = new Date()
+  const now = nowDate.toISOString()
+  const dataViradaAtual = obterDataAlvoVirada(nowDate)
   const caixaRef = caixasCol.doc()
   await caixaRef.set({
     status: 'aberto',
@@ -1070,6 +1073,8 @@ app.post('/caixa/abrir', async (req, res) => {
     valorInicial: Number(valorInicial) || 0,
     aberturaEm: now,
     caixaId: caixaRef.id,
+    ultimaViradaCaixaEm: now,
+    ultimaViradaCaixaData: dataViradaAtual,
     updated_at: now,
   })
 
