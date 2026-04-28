@@ -81,15 +81,16 @@ function isHoje(dataStr) {
 }
 
 function somarTotais(vendas = []) {
-  const totalDinheiro = vendas
+  const vendasAtivas = (vendas || []).filter((v) => v?.cancelada !== true)
+  const totalDinheiro = vendasAtivas
     .filter((v) => String(v.metodoPagamento || '').toLowerCase().includes('dinheiro'))
     .reduce((acc, v) => acc + Number(v.total || 0), 0)
 
-  const totalCartao = vendas
+  const totalCartao = vendasAtivas
     .filter((v) => String(v.metodoPagamento || '').toLowerCase().includes('cart'))
     .reduce((acc, v) => acc + Number(v.total || 0), 0)
 
-  const totalPix = vendas
+  const totalPix = vendasAtivas
     .filter((v) => String(v.metodoPagamento || '').toLowerCase().includes('pix'))
     .reduce((acc, v) => acc + Number(v.total || 0), 0)
 
@@ -178,6 +179,7 @@ async function listarVendasDoCaixa(caixaId) {
   const snap = await vendasCol.where('caixaId', '==', String(caixaId)).get()
   return snap.docs
     .map((doc) => docToEntity(doc))
+    .filter((venda) => venda?.cancelada !== true)
     .sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0))
 }
 
@@ -358,7 +360,9 @@ async function virarCaixaAutomaticamenteSeNecessario() {
 
 async function listarVendasHistorico() {
   const snap = await vendasCol.orderBy('data', 'desc').get()
-  return snap.docs.map((doc) => docToEntity(doc))
+  return snap.docs
+    .map((doc) => docToEntity(doc))
+    .filter((venda) => venda?.cancelada !== true)
 }
 
 async function seedProdutosFixos() {
@@ -1367,6 +1371,43 @@ app.post('/vendas/:id/itens', async (req, res) => {
 
   const atualizada = await vendaRef.get()
   res.json(docToEntity(atualizada))
+})
+
+app.post('/vendas/:id/cancelar', async (req, res) => {
+  const { id } = req.params
+  const vendaRef = vendasCol.doc(String(id))
+  const vendaDoc = await vendaRef.get()
+  if (!vendaDoc.exists) return res.status(404).json({ error: 'Venda não encontrada' })
+  const venda = docToEntity(vendaDoc)
+  if (venda.cancelada === true) {
+    return res.status(400).json({ error: 'Venda já cancelada' })
+  }
+
+  for (const item of venda.itens || []) {
+    const produtoId = item.produtoId || item.produto_id
+    const produtoRef = produtosCol.doc(String(produtoId))
+    const produtoDoc = await produtoRef.get()
+    if (!produtoDoc.exists) continue
+    const produto = docToEntity(produtoDoc)
+    if (!produtoEhFixo(produto)) {
+      const qtd = item.unidadeMedida === 'gramas'
+        ? Number(item.pesoGramas || 0)
+        : Number(item.quantidade || 0)
+      await produtoRef.update({
+        estoque: Math.max(0, Number(produto.estoque || 0) + Math.max(0, qtd)),
+        updated_at: new Date().toISOString(),
+      })
+    }
+  }
+
+  await vendaRef.update({
+    cancelada: true,
+    canceladaEm: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  })
+
+  const canceladaDoc = await vendaRef.get()
+  return res.json({ sucesso: true, venda: docToEntity(canceladaDoc) })
 })
 
 app.get('/dashboard/resumo', async (_, res) => {

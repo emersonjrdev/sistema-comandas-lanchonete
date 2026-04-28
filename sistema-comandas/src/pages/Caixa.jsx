@@ -5,6 +5,7 @@ import {
   adicionarItem,
   adicionarItemAVenda,
   alterarQtd,
+  cancelarVendaFinalizada,
   confirmarPagamento,
   enviarParaCaixa,
   removerItem,
@@ -413,6 +414,27 @@ export default function Caixa() {
     }
   }
 
+  async function handleCancelarVenda(vendaId) {
+    const confirmou = window.confirm(
+      'Cancelar esta compra finalizada? O estoque será devolvido e a venda sairá dos totais.'
+    )
+    if (!confirmou) return
+    const confirmouNovamente = window.confirm(
+      'Confirma CANCELAR esta compra agora? Essa ação não pode ser desfeita.'
+    )
+    if (!confirmouNovamente) return
+
+    const result = await cancelarVendaFinalizada(vendaId)
+    if (result?.sucesso) {
+      playSomVenda()
+      await refresh()
+      toast.show('Compra cancelada com sucesso!')
+    } else {
+      playSomErro()
+      toast.show(result?.erro || 'Não foi possível cancelar a compra', 'error')
+    }
+  }
+
   const caixa = caixaAtual || { aberto: false, valorInicial: 0 }
   const totalVendasDinheiro = Number(totais.totalDinheiro || 0)
   const totalSangriasCaixa = Number(totais.totalSangrias ?? totalSangrias ?? 0)
@@ -760,6 +782,7 @@ export default function Caixa() {
 
                     {comandaEmEdicao?.itens?.length ? (
                       <div className="space-y-2 mb-4">
+                        <p className="text-xs text-stone-500">Use o botão X para cancelar item da comanda.</p>
                         {comandaEmEdicao.itens.map((item) => (
                           <ItemRow
                             key={item.id}
@@ -896,6 +919,13 @@ export default function Caixa() {
                   <p className="text-xl font-bold text-amber-800 tabular-nums">
                     R$ {(venda.total || 0).toFixed(2)}
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => handleCancelarVenda(venda.id)}
+                    className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700"
+                  >
+                    Cancelar compra
+                  </button>
                   <button
                     type="button"
                     onClick={() => setVendaAdicionarItem(venda)}

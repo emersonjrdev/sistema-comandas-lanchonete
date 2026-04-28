@@ -138,3 +138,11 @@ export async function adicionarItemAVenda(vendaId, produtoId, payload = {}) {
   emitUpdate()
   return result
 }
+
+export async function cancelarVendaFinalizada(vendaId) {
+  const result = await apiRequest(`/vendas/${vendaId}/cancelar`, {
+    method: 'POST',
+  })
+  emitUpdate()
+  return result
+}
