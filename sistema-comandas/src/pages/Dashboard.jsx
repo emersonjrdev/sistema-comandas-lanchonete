@@ -1,4 +1,5 @@
 import { useDashboard } from '../hooks/usePDV'
+import { formatarMoedaBRL } from '../utils/moeda'
 
 export default function Dashboard() {
   const [resumo] = useDashboard()
@@ -11,37 +12,37 @@ export default function Dashboard() {
         <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Total vendido hoje</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {resumo.totalHoje.toFixed(2)}
+            {formatarMoedaBRL(resumo.totalHoje)}
           </p>
         </div>
         <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Dinheiro hoje</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {(resumo.totalDinheiro ?? 0).toFixed(2)}
+            {formatarMoedaBRL(resumo.totalDinheiro ?? 0)}
           </p>
         </div>
         <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Cartão hoje</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {(resumo.totalCartao ?? 0).toFixed(2)}
+            {formatarMoedaBRL(resumo.totalCartao ?? 0)}
           </p>
         </div>
         <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">PIX hoje</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {(resumo.totalPix ?? 0).toFixed(2)}
+            {formatarMoedaBRL(resumo.totalPix ?? 0)}
           </p>
         </div>
         <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Sangrias</p>
           <p className="text-2xl font-bold text-red-700 tabular-nums">
-            R$ {(resumo.totalSangrias ?? 0).toFixed(2)}
+            {formatarMoedaBRL(resumo.totalSangrias ?? 0)}
           </p>
         </div>
         <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
           <p className="text-sm font-medium text-stone-500 mb-1">Dinheiro líquido</p>
           <p className="text-2xl font-bold text-green-700 tabular-nums">
-            R$ {(resumo.dinheiroLiquido ?? 0).toFixed(2)}
+            {formatarMoedaBRL(resumo.dinheiroLiquido ?? 0)}
           </p>
         </div>
         <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
@@ -90,7 +91,7 @@ export default function Dashboard() {
         <div className="p-4 md:p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm sm:col-span-2">
           <p className="text-sm font-medium text-stone-500 mb-1">Total histórico</p>
           <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {resumo.totalHistorico.toFixed(2)}
+            {formatarMoedaBRL(resumo.totalHistorico)}
           </p>
         </div>
       </div>

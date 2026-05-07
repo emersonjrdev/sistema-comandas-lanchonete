@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useCaixa } from '../hooks/usePDV'
+import { formatarMoedaBRL } from '../utils/moeda'
 
 function formatarData(dataStr) {
   if (!dataStr) return '-'
@@ -47,7 +48,7 @@ export default function Financeiro() {
           Faturamento total (histórico)
         </p>
         <p className="text-2xl font-bold text-amber-800 tabular-nums">
-          R$ {faturamentoTotal.toFixed(2)}
+          {formatarMoedaBRL(faturamentoTotal)}
         </p>
       </div>
 
@@ -70,7 +71,7 @@ export default function Financeiro() {
                   {grupo.data}
                 </h4>
                 <p className="text-xl font-bold text-amber-800 tabular-nums">
-                  R$ {grupo.total.toFixed(2)}
+                  {formatarMoedaBRL(grupo.total)}
                 </p>
               </div>
               <ul className="space-y-2">
@@ -85,7 +86,7 @@ export default function Financeiro() {
                       )}
                     </span>
                     <span className="block sm:inline font-semibold text-amber-800 tabular-nums">
-                      R$ {(venda.total || 0).toFixed(2)}
+                      {formatarMoedaBRL(venda.total || 0)}
                     </span>
                   </li>
                 ))}
