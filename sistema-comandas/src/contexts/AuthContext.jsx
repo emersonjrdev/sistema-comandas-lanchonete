@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { login as loginService, getUsuarioPorId } from '../services/authService'
+import { limparSessaoFinanceiro } from '../services/financeiroAccess'
 
 export const AuthContext = createContext(null) // ✅ apenas isso foi alterado
 
@@ -19,6 +20,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const logout = useCallback(() => {
+    limparSessaoFinanceiro()
     setUsuario(null)
     localStorage.removeItem('sistema-comandas:usuario-id')
     localStorage.removeItem('sistema-comandas:usuario')

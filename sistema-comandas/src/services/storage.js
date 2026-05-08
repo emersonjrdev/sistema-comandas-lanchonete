@@ -1,4 +1,5 @@
 import { apiRequest } from './api'
+import { obterCabecalhoFinanceiroOuNull } from './financeiroAccess'
 
 function emitUpdate() {
   window.dispatchEvent(new CustomEvent('pdv:storage-update'))
@@ -123,7 +124,9 @@ export async function getResumoDashboard() {
 }
 
 export async function getCaixaHistorico() {
-  return apiRequest('/caixa/historico')
+  const headers = obterCabecalhoFinanceiroOuNull()
+  if (!headers) throw new Error('Financeiro não desbloqueado neste dispositivo.')
+  return apiRequest('/caixa/historico', { headers })
 }
 
 export async function adicionarItemAVenda(vendaId, produtoId, payload = {}) {

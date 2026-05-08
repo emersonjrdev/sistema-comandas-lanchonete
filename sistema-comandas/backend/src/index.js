@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import crypto from 'node:crypto'
 import express from 'express'
 import cors from 'cors'
 import { initializeApp, cert, getApps } from 'firebase-admin/app'
@@ -53,6 +54,72 @@ const fechamentosCol = db.collection('caixa_fechamentos')
 const caixaConfigRef = db.collection('config').doc('caixa')
 const caixasCol = db.collection('caixas')
 const PRODUTOS_FIXOS = ['Pão Francês', 'Frios', 'Bolos']
+
+const FIN_SESSION_TTL_MS_RAW = Number(process.env.FINANCEIRO_SESSAO_TTL_MS)
+const FIN_SESSION_TTL_MS =
+  Number.isFinite(FIN_SESSION_TTL_MS_RAW) && FIN_SESSION_TTL_MS_RAW >= 60000 ? FIN_SESSION_TTL_MS_RAW : 12 * 60 * 60 * 1000
+const FIN_MARIA_SENHA = String(process.env.FINANCEIRO_MARIA_SENHA ?? '')
+
+function financeiroSecretSessao() {
+  const s = process.env.FINANCEIRO_SESSAO_SEGREDO || process.env.FIREBASE_PROJECT_ID || 'dev-finance-secret'
+  return String(s)
+}
+
+function criarTokenSessaoFinanceiro() {
+  const exp = Date.now() + FIN_SESSION_TTL_MS
+  const payloadJson = JSON.stringify({ tipo: 'financeiro', exp })
+  const sig = crypto
+    .createHmac('sha256', financeiroSecretSessao())
+    .update(payloadJson)
+    .digest('base64url')
+  const parte = Buffer.from(payloadJson, 'utf8').toString('base64url')
+  return { token: `${parte}.${sig}`, expiresAt: exp }
+}
+
+function validarTokenSessaoFinanceiro(token) {
+  try {
+    const raw = String(token || '').trim()
+    const sep = raw.indexOf('.')
+    if (sep < 1 || sep >= raw.length - 1) return false
+    const parte = raw.slice(0, sep)
+    const sig = raw.slice(sep + 1)
+    const payloadJson = Buffer.from(parte, 'base64url').toString('utf8')
+    const esperadoSig = crypto
+      .createHmac('sha256', financeiroSecretSessao())
+      .update(payloadJson)
+      .digest('base64url')
+    const sigBuf = Buffer.from(sig)
+    const espBuf = Buffer.from(esperadoSig)
+    if (sigBuf.length !== espBuf.length || !crypto.timingSafeEqual(sigBuf, espBuf)) return false
+    const payload = JSON.parse(payloadJson)
+    if (payload.tipo !== 'financeiro' || typeof payload.exp !== 'number') return false
+    return Date.now() <= payload.exp
+  } catch {
+    return false
+  }
+}
+
+function tokenSessaoFinanceiroDosHeaders(req) {
+  const h = req.get('x-sessao-financeiro')
+  if (h) return h.trim()
+  const auth = req.get('authorization') || ''
+  return auth.replace(/^Bearer\s+/i, '').trim()
+}
+
+function exigirSessaoFinanceiro(req, res, next) {
+  if (!FIN_MARIA_SENHA) {
+    return res.status(503).json({
+      error: 'Financeiro não configurado: defina FINANCEIRO_MARIA_SENHA no servidor.',
+    })
+  }
+  const token = tokenSessaoFinanceiroDosHeaders(req)
+  if (!token || !validarTokenSessaoFinanceiro(token)) {
+    return res.status(403).json({
+      error: 'Acesso ao histórico financeiro não autorizado. Informe a senha da Maria.',
+    })
+  }
+  next()
+}
 
 function gerarId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -121,13 +188,48 @@ function formatarDataSp(value = new Date()) {
   return formatter.format(value)
 }
 
-function obterHoraSp(value = new Date()) {
-  const formatter = new Intl.DateTimeFormat('en-US', {
+/** Padrão: 20:30 BRT (dia operacional inicia logo após). */
+const VIRADA_CAIXA_MINUTOS_BR_PADRAO = 20 * 60 + 30
+
+/** Lê CAIXA_VIRADA_MINUTOS_DESDE_MEIA_NOITE_BR (0–1439), ou CAIXA_VIRADA_HORA_BR + CAIXA_VIRADA_MINUTO_BR */
+function lerMinutosViradaCaixaEnv() {
+  const rawMin = process.env.CAIXA_VIRADA_MINUTOS_DESDE_MEIA_NOITE_BR
+  if (rawMin !== undefined && String(rawMin).trim() !== '') {
+    const n = Number(rawMin)
+    if (Number.isFinite(n) && n >= 0 && n < 1440) return Math.floor(n)
+  }
+  const h = Number(process.env.CAIXA_VIRADA_HORA_BR)
+  const mi = Number(process.env.CAIXA_VIRADA_MINUTO_BR)
+  if (
+    Number.isFinite(h) &&
+    Number.isFinite(mi) &&
+    h >= 0 &&
+    h <= 23 &&
+    mi >= 0 &&
+    mi <= 59
+  ) {
+    return h * 60 + mi
+  }
+  return VIRADA_CAIXA_MINUTOS_BR_PADRAO
+}
+
+const VIRADA_CAIXA_MINUTOS_BR = lerMinutosViradaCaixaEnv()
+
+function obterMinutosDesdeMeiaNoiteSp(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Sao_Paulo',
     hour: '2-digit',
+    minute: '2-digit',
     hour12: false,
-  })
-  return Number(formatter.format(value)) || 0
+  }).formatToParts(value)
+  const hh = Number(parts.find((x) => x.type === 'hour')?.value)
+  const mm = Number(parts.find((x) => x.type === 'minute')?.value)
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 0
+  return hh * 60 + mm
+}
+
+function passouHorarioViradaCaixaBr(agora = new Date()) {
+  return obterMinutosDesdeMeiaNoiteSp(agora) >= VIRADA_CAIXA_MINUTOS_BR
 }
 
 function normalizarNomeProduto(valor) {
@@ -318,18 +420,16 @@ async function getCaixaStatus() {
 }
 
 function precisaVirarCaixaAgora(status, agora = new Date()) {
-  const horaAtual = obterHoraSp(agora)
   const hoje = formatarDataSp(agora)
   const ontemDate = new Date(agora.getTime() - 24 * 60 * 60 * 1000)
   const ontem = formatarDataSp(ontemDate)
-  const alvoVirada = horaAtual >= 23 ? hoje : ontem
+  const alvoVirada = passouHorarioViradaCaixaBr(agora) ? hoje : ontem
   const ultimaData = String(status?.ultimaViradaCaixaData || '')
   return ultimaData !== alvoVirada
 }
 
 function obterDataAlvoVirada(agora = new Date()) {
-  const horaAtual = obterHoraSp(agora)
-  if (horaAtual >= 23) return formatarDataSp(agora)
+  if (passouHorarioViradaCaixaBr(agora)) return formatarDataSp(agora)
   return formatarDataSp(new Date(agora.getTime() - 24 * 60 * 60 * 1000))
 }
 
@@ -1028,7 +1128,21 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
   res.json(docToEntity(vendaDoc))
 })
 
-app.get('/caixa/historico', async (_, res) => {
+app.post('/financeiro/sessao', (req, res) => {
+  if (!FIN_MARIA_SENHA) {
+    return res.status(503).json({
+      error: 'Senha não configurada: defina FINANCEIRO_MARIA_SENHA no servidor.',
+    })
+  }
+  const senha = String(req.body?.senha ?? '')
+  if (!senha || senha !== FIN_MARIA_SENHA) {
+    return res.status(401).json({ error: 'Senha incorreta.' })
+  }
+  const criado = criarTokenSessaoFinanceiro()
+  res.json({ token: criado.token, expiresAt: criado.expiresAt })
+})
+
+app.get('/caixa/historico', exigirSessaoFinanceiro, async (_, res) => {
   const vendas = await listarVendasHistorico()
   res.json(vendas)
 })

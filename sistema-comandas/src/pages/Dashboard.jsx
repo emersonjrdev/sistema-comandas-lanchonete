@@ -41,7 +41,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <div className={cardCls}>
           <p className={labelCls}>Comandas abertas</p>
           <p className={valueCls}>{resumo.comandasAbertas}</p>
@@ -63,10 +63,6 @@ export default function Dashboard() {
           >
             {resumo.caixaAberto ? 'Aberto' : 'Fechado'}
           </p>
-        </div>
-        <div className={`${cardCls} sm:col-span-2 lg:col-span-1`}>
-          <p className={labelCls}>Total histórico</p>
-          <p className={`${valueCls} text-base xl:text-lg`}>{formatarMoedaBRL(resumo.totalHistorico)}</p>
         </div>
       </div>
 
