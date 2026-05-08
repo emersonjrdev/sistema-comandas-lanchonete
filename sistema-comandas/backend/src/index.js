@@ -575,7 +575,7 @@ const corsOptions = {
     return callback(null, permitido)
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-operador-id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-operador-id', 'x-sessao-financeiro'],
 }
 
 const app = express()

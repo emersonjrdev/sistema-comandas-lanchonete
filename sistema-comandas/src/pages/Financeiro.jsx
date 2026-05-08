@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
@@ -46,6 +46,7 @@ export default function Financeiro() {
   const [carregando, setCarregando] = useState(() => sessaoFinanceiroValida())
   const [senhaFinanceiro, setSenhaFinanceiro] = useState('')
   const [enviandoSenha, setEnviandoSenha] = useState(false)
+  const ultimoToastRedeMs = useRef(0)
 
   const carregarHistorico = useCallback(async () => {
     if (!sessaoFinanceiroValida()) {
@@ -67,8 +68,13 @@ export default function Financeiro() {
         limparSessaoFinanceiro()
         setSessaoOk(false)
       }
-      if (!/financeiro não desbloqueado/i.test(msg)) {
+      const ehFalhaRede = /Não foi possível conectar à API/i.test(msg)
+      const agora = Date.now()
+      if (!ehFalhaRede && !/financeiro não desbloqueado/i.test(msg)) {
         toast.show(msg || 'Não foi possível carregar o financeiro.', 'error')
+      } else if (ehFalhaRede && agora - ultimoToastRedeMs.current > 12_000) {
+        ultimoToastRedeMs.current = agora
+        toast.show(msg, 'error')
       }
     } finally {
       setCarregando(false)
