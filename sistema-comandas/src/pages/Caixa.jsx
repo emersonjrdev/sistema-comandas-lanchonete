@@ -14,6 +14,7 @@ import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
 import { playSomVenda, playSomErro } from '../utils/sons'
 import { formatarCentavosInput, moedaInputParaNumero } from '../utils/moeda'
+import { produtoEhFriosNome, produtoVendePorGramas } from '../utils/produto'
 import ModalPagamento from '../components/ModalPagamento'
 import ItemRow from '../components/comandas/ItemRow'
 
@@ -85,6 +86,8 @@ export default function Caixa() {
   const [tipoFrioComanda, setTipoFrioComanda] = useState('Presunto')
   const [pesoFrioComandaInput, setPesoFrioComandaInput] = useState('100')
   const [pesoFrioComandaUnidade, setPesoFrioComandaUnidade] = useState('g')
+  const [valorOpcionalComanda, setValorOpcionalComanda] = useState('')
+  const [valorOpcionalVenda, setValorOpcionalVenda] = useState('')
   const [valorSangria, setValorSangria] = useState('')
   const [motivoSangria, setMotivoSangria] = useState('')
   const [registrandoSangria, setRegistrandoSangria] = useState(false)
@@ -127,16 +130,10 @@ export default function Caixa() {
   const tiposFrios = ['Presunto', 'Queijo', 'Mortadela', 'Peito de Peru', 'Salame']
   const produtoComandaObj = produtos.find((p) => String(p.id) === String(produtoComandaSelecionado))
   const produtoVendaObj = produtos.find((p) => String(p.id) === String(produtoSelecionado))
-  const comandaEhFrios =
-    String(produtoComandaObj?.nome || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase() === 'frios'
-  const vendaEhFrios =
-    String(produtoVendaObj?.nome || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase() === 'frios'
+  const comandaEhFrios = produtoEhFriosNome(produtoComandaObj?.nome)
+  const comandaPorGramas = produtoVendePorGramas(produtoComandaObj)
+  const vendaEhFrios = produtoEhFriosNome(produtoVendaObj?.nome)
+  const vendaPorGramas = produtoVendePorGramas(produtoVendaObj)
   const comandaEhFixo = produtoComandaObj?.fixo === true
   const vendaEhFixo = produtoVendaObj?.fixo === true
   const comandaEmEdicao = useMemo(
@@ -299,21 +296,26 @@ export default function Caixa() {
     const quantidadeNum = quantidadeParaNumero(quantidade)
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioVendaInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioVendaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
-    const estoqueNecessario = vendaEhFrios ? pesoGramas : quantidadeNum
+    const estoqueNecessario = vendaPorGramas ? pesoGramas : quantidadeNum
     const valorTotalNum = moedaInputParaNumero(valorTotalVenda)
+    const valorOpcionalNum = moedaInputParaNumero(valorOpcionalVenda)
     const produto = produtos.find((p) => String(p.id) === String(produtoSelecionado))
     if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
-    if (vendaEhFixo && (!Number.isFinite(valorTotalNum) || valorTotalNum <= 0)) {
+    if (vendaEhFixo && !vendaPorGramas && (!Number.isFinite(valorTotalNum) || valorTotalNum <= 0)) {
       playSomErro()
       toast.show('Informe o valor total para produto fixo', 'error')
       return
     }
-    const payload = vendaEhFrios
-      ? { pesoGramas, tipoFrio: tipoFrioVenda, ...(vendaEhFixo ? { valorTotal: valorTotalNum } : {}) }
+    const payload = vendaPorGramas
+      ? {
+          pesoGramas,
+          ...(vendaEhFrios ? { tipoFrio: tipoFrioVenda } : {}),
+          ...(Number.isFinite(valorOpcionalNum) && valorOpcionalNum > 0 ? { valorTotal: valorOpcionalNum } : {}),
+        }
       : { quantidade: quantidadeNum, ...(vendaEhFixo ? { valorTotal: valorTotalNum } : {}) }
     const venda = await adicionarItemAVenda(vendaAdicionarItem.id, produtoSelecionado, payload)
     if (venda) {
@@ -326,6 +328,7 @@ export default function Caixa() {
       setTipoFrioVenda('Presunto')
       setPesoFrioVendaInput('100')
       setPesoFrioVendaUnidade('g')
+      setValorOpcionalVenda('')
       toast.show('Item adicionado à venda!')
     } else {
       playSomErro()
@@ -341,6 +344,7 @@ export default function Caixa() {
     setTipoFrioComanda('Presunto')
     setPesoFrioComandaInput('100')
     setPesoFrioComandaUnidade('g')
+    setValorOpcionalComanda('')
   }
 
   async function handleAdicionarItemComanda() {
@@ -348,25 +352,26 @@ export default function Caixa() {
     const quantidadeComandaNum = quantidadeParaNumero(quantidadeComanda)
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioComandaInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioComandaUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
-    const estoqueNecessario = comandaEhFrios ? pesoGramas : quantidadeComandaNum
+    const estoqueNecessario = comandaPorGramas ? pesoGramas : quantidadeComandaNum
     const valorTotalNum = moedaInputParaNumero(valorTotalComanda)
+    const valorOpcionalNum = moedaInputParaNumero(valorOpcionalComanda)
     const produto = produtos.find((p) => String(p.id) === String(produtoComandaSelecionado))
     if (Number(produto?.estoque ?? 0) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente', 'error')
       return
     }
-    if (comandaEhFixo && (!Number.isFinite(valorTotalNum) || valorTotalNum <= 0)) {
+    if (comandaEhFixo && !comandaPorGramas && (!Number.isFinite(valorTotalNum) || valorTotalNum <= 0)) {
       playSomErro()
       toast.show('Informe o valor total para produto fixo', 'error')
       return
     }
 
-    const payload = comandaEhFrios
+    const payload = comandaPorGramas
       ? {
           pesoGramas,
-          tipoFrio: tipoFrioComanda,
-          ...(comandaEhFixo ? { valorTotal: valorTotalNum } : {}),
+          ...(comandaEhFrios ? { tipoFrio: tipoFrioComanda } : {}),
+          ...(Number.isFinite(valorOpcionalNum) && valorOpcionalNum > 0 ? { valorTotal: valorOpcionalNum } : {}),
         }
       : { quantidade: quantidadeComandaNum, ...(comandaEhFixo ? { valorTotal: valorTotalNum } : {}) }
     const comandaAtualizada = await adicionarItem(
@@ -383,6 +388,7 @@ export default function Caixa() {
       setTipoFrioComanda('Presunto')
       setPesoFrioComandaInput('100')
       setPesoFrioComandaUnidade('g')
+      setValorOpcionalComanda('')
       toast.show('Item adicionado ao pedido!')
     } else {
       playSomErro()
@@ -814,28 +820,34 @@ export default function Caixa() {
                           </option>
                         ))}
                       </select>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={quantidadeComanda}
-                        onChange={(e) => setQuantidadeComanda(normalizarQuantidadeInput(e.target.value))}
-                        onBlur={() => setQuantidadeComanda(String(quantidadeParaNumero(quantidadeComanda)))}
-                        className="w-full sm:w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
-                      />
-                      {comandaEhFrios && (
+                      {!comandaPorGramas && (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={quantidadeComanda}
+                          onChange={(e) => setQuantidadeComanda(normalizarQuantidadeInput(e.target.value))}
+                          onBlur={() => setQuantidadeComanda(String(quantidadeParaNumero(quantidadeComanda)))}
+                          className="w-full sm:w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
+                          title="Quantidade"
+                          placeholder="Qtd"
+                        />
+                      )}
+                      {comandaPorGramas && (
                         <>
-                          <select
-                            value={tipoFrioComanda}
-                            onChange={(e) => setTipoFrioComanda(e.target.value)}
-                            className="w-full sm:w-auto px-3 py-2 rounded-lg border-2 border-amber-200"
-                          >
-                            {tiposFrios.map((tipo) => (
-                              <option key={tipo} value={tipo}>
-                                {tipo}
-                              </option>
-                            ))}
-                          </select>
+                          {comandaEhFrios && (
+                            <select
+                              value={tipoFrioComanda}
+                              onChange={(e) => setTipoFrioComanda(e.target.value)}
+                              className="w-full sm:w-auto px-3 py-2 rounded-lg border-2 border-amber-200"
+                            >
+                              {tiposFrios.map((tipo) => (
+                                <option key={tipo} value={tipo}>
+                                  {tipo}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                           <input
                             type="text"
                             inputMode="decimal"
@@ -844,6 +856,8 @@ export default function Caixa() {
                               setPesoFrioComandaInput(e.target.value.replace(/[^\d,.]/g, ''))
                             }
                             className="w-full sm:w-24 px-3 py-2 rounded-lg border-2 border-amber-200"
+                            title="Peso"
+                            placeholder="Peso"
                           />
                           <select
                             value={pesoFrioComandaUnidade}
@@ -853,9 +867,18 @@ export default function Caixa() {
                             <option value="g">g</option>
                             <option value="kg">kg</option>
                           </select>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={valorOpcionalComanda}
+                            onChange={(e) => setValorOpcionalComanda(formatarCentavosInput(e.target.value))}
+                            placeholder="Valor total opcional"
+                            className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
+                            title="Valor total opcional — senão usa preço por 100 g"
+                          />
                         </>
                       )}
-                      {comandaEhFixo && (
+                      {comandaEhFixo && !comandaPorGramas && (
                         <input
                           type="text"
                           inputMode="decimal"
@@ -970,34 +993,40 @@ export default function Caixa() {
                         </option>
                       ))}
                     </select>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={quantidade}
-                      onChange={(e) => setQuantidade(normalizarQuantidadeInput(e.target.value))}
-                      onBlur={() => setQuantidade(String(quantidadeParaNumero(quantidade)))}
-                      className="w-full sm:w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
-                    />
-                    {vendaEhFrios && (
+                    {!vendaPorGramas && (
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={quantidade}
+                        onChange={(e) => setQuantidade(normalizarQuantidadeInput(e.target.value))}
+                        onBlur={() => setQuantidade(String(quantidadeParaNumero(quantidade)))}
+                        className="w-full sm:w-20 px-3 py-2 rounded-lg border-2 border-amber-200"
+                        placeholder="Qtd"
+                      />
+                    )}
+                    {vendaPorGramas && (
                       <>
-                        <select
-                          value={tipoFrioVenda}
-                          onChange={(e) => setTipoFrioVenda(e.target.value)}
-                          className="w-full sm:w-auto px-3 py-2 rounded-lg border-2 border-amber-200"
-                        >
-                          {tiposFrios.map((tipo) => (
-                            <option key={tipo} value={tipo}>
-                              {tipo}
-                            </option>
-                          ))}
-                        </select>
+                        {vendaEhFrios && (
+                          <select
+                            value={tipoFrioVenda}
+                            onChange={(e) => setTipoFrioVenda(e.target.value)}
+                            className="w-full sm:w-auto px-3 py-2 rounded-lg border-2 border-amber-200"
+                          >
+                            {tiposFrios.map((tipo) => (
+                              <option key={tipo} value={tipo}>
+                                {tipo}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                         <input
                           type="text"
                           inputMode="decimal"
                           value={pesoFrioVendaInput}
                           onChange={(e) => setPesoFrioVendaInput(e.target.value.replace(/[^\d,.]/g, ''))}
                           className="w-full sm:w-24 px-3 py-2 rounded-lg border-2 border-amber-200"
+                          placeholder="Peso"
                         />
                         <select
                           value={pesoFrioVendaUnidade}
@@ -1007,9 +1036,17 @@ export default function Caixa() {
                           <option value="g">g</option>
                           <option value="kg">kg</option>
                         </select>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={valorOpcionalVenda}
+                          onChange={(e) => setValorOpcionalVenda(formatarCentavosInput(e.target.value))}
+                          placeholder="Valor total opcional"
+                          className="w-full sm:w-40 px-3 py-2 rounded-lg border-2 border-amber-200"
+                        />
                       </>
                     )}
-                    {vendaEhFixo && (
+                    {vendaEhFixo && !vendaPorGramas && (
                       <input
                         type="text"
                         inputMode="decimal"

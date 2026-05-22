@@ -9,7 +9,11 @@ export default function ItemRow({ item, onQuantidadeChange, onRemover }) {
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-amber-900 truncate">{item?.nome ?? 'Item'}</p>
         <p className="text-sm text-stone-500">
-          {itemValorTotal ? `Valor total informado: R$ ${preco.toFixed(2)}` : `R$ ${preco.toFixed(2)} cada`}
+          {itemValorTotal
+            ? `Valor total informado: R$ ${preco.toFixed(2)}`
+            : itemPorPeso
+              ? `R$ ${preco.toFixed(2)} / 100 g`
+              : `R$ ${preco.toFixed(2)} cada`}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">

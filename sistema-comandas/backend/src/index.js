@@ -248,6 +248,136 @@ function produtoEhFixo(produto) {
   return produto?.fixo === true
 }
 
+/** Produto cadastrado para venda por gramas (exc. Frios, que têm regra própria). */
+function produtoVendePorGramasFlag(produto) {
+  if (produtoEhFixo(produto) || produtoEhFrios(produto)) return false
+  return produto?.vendePorGramas === true
+}
+
+/**
+ * Monta linha de item (comanda/venda) a partir do produto + body.
+ * Frios primeiro: no cadastro costuma ter fixo=true, mas a venda é sempre por peso.
+ * @returns {{ item: object, estoqueNecessario: number } | { erro: string }}
+ */
+function montarItemLinhaProduto(produto, body = {}) {
+  const { quantidade = 1, pesoGramas, tipoFrio, valorTotal, valorUnitario } = body
+  const isFrios = produtoEhFrios(produto)
+  const isFixo = produtoEhFixo(produto)
+  const isPorGramasOpcional = produtoVendePorGramasFlag(produto)
+  const qtd = Math.max(1, Number(quantidade) || 1)
+  const pesoNum = Math.max(0, Number(pesoGramas) || 0)
+  const tipoFrioFinal = String(tipoFrio || '').trim()
+  const valorTotalBruto =
+    valorTotal !== undefined && valorTotal !== null && String(valorTotal).trim() !== ''
+      ? Number(valorTotal)
+      : null
+  const valorInformado =
+    valorTotalBruto !== null && Number.isFinite(valorTotalBruto)
+      ? valorTotalBruto
+      : Number(valorUnitario)
+
+  const agora = new Date().toISOString()
+
+  function montarItemGramas({ exigeTipoFrio, nomeExibicao }) {
+    if (pesoNum < 1) {
+      return { erro: 'Informe o peso em gramas (mínimo 1 g)' }
+    }
+    if (exigeTipoFrio && !tipoFrioFinal) {
+      return { erro: 'tipoFrio é obrigatório para produto Frios' }
+    }
+    const precoRef = Number(produto.preco || 0)
+    let subtotal
+    let valorManualLinha = false
+    if (valorTotalBruto !== null && Number.isFinite(valorTotalBruto) && valorTotalBruto > 0) {
+      subtotal = valorTotalBruto
+      valorManualLinha = true
+    } else {
+      if (!Number.isFinite(precoRef) || precoRef <= 0) {
+        return {
+          erro:
+            'Cadastre o preço por 100 g neste produto ou informe o valor total opcional na venda',
+        }
+      }
+      subtotal = precoRef * (pesoNum / 100)
+    }
+    return {
+      item: {
+        id: gerarId(),
+        produto_id: produto.id,
+        produtoId: produto.id,
+        nome: nomeExibicao,
+        preco: valorManualLinha ? subtotal : precoRef,
+        quantidade: 1,
+        unidadeMedida: 'gramas',
+        pesoGramas: pesoNum,
+        tipoFrio: exigeTipoFrio ? tipoFrioFinal : null,
+        valorManualTotal: valorManualLinha,
+        subtotal,
+        created_at: agora,
+      },
+      estoqueNecessario: pesoNum,
+    }
+  }
+
+  if (isFrios) {
+    return montarItemGramas({
+      exigeTipoFrio: true,
+      nomeExibicao: tipoFrioFinal ? `${produto.nome} - ${tipoFrioFinal}` : produto.nome,
+    })
+  }
+
+  if (isFixo) {
+    const precoBase = Number.isFinite(valorInformado) ? valorInformado : 0
+    if (!Number.isFinite(precoBase) || precoBase <= 0) {
+      return { erro: 'Informe um valor total maior que zero para produto fixo' }
+    }
+    return {
+      item: {
+        id: gerarId(),
+        produto_id: produto.id,
+        produtoId: produto.id,
+        nome: produto.nome,
+        preco: precoBase,
+        quantidade: 1,
+        unidadeMedida: 'valor_total',
+        pesoGramas: null,
+        tipoFrio: null,
+        valorManualTotal: true,
+        subtotal: precoBase,
+        created_at: agora,
+      },
+      estoqueNecessario: qtd,
+    }
+  }
+
+  if (isPorGramasOpcional) {
+    return montarItemGramas({
+      exigeTipoFrio: false,
+      nomeExibicao: produto.nome,
+    })
+  }
+
+  const precoBase = Number(produto.preco || 0)
+  const subtotal = precoBase * qtd
+  return {
+    item: {
+      id: gerarId(),
+      produto_id: produto.id,
+      produtoId: produto.id,
+      nome: produto.nome,
+      preco: precoBase,
+      quantidade: qtd,
+      unidadeMedida: 'unidade',
+      pesoGramas: null,
+      tipoFrio: null,
+      valorManualTotal: false,
+      subtotal,
+      created_at: agora,
+    },
+    estoqueNecessario: qtd,
+  }
+}
+
 function estoqueDisponivelParaVenda(produto) {
   if (produtoEhFixo(produto)) return Number.MAX_SAFE_INTEGER
   return Number(produto?.estoque ?? 0)
@@ -465,6 +595,31 @@ async function listarVendasHistorico() {
     .filter((venda) => venda?.cancelada !== true)
 }
 
+/** Início do dia civil em SP (ISO) para filtrar vendas sem ler o histórico inteiro. */
+function isoInicioCalendarioSp(agora = new Date()) {
+  return `${formatarDataSp(agora)}T00:00:00.000-03:00`
+}
+
+/** Vendas a partir de uma data — evita carregar toda a coleção (economia de cota). */
+async function listarVendasDesde(desdeIso) {
+  const desde = String(desdeIso || '').trim()
+  if (!desde) return listarVendasHistorico()
+  const snap = await vendasCol.where('data', '>=', desde).orderBy('data', 'desc').get()
+  return snap.docs
+    .map((doc) => docToEntity(doc))
+    .filter((venda) => venda?.cancelada !== true)
+}
+
+async function listarVendasParaTotaisCaixa(caixaAtual) {
+  if (caixaAtual?.aberto && caixaAtual?.caixaId) {
+    return listarVendasDoCaixa(caixaAtual.caixaId)
+  }
+  if (caixaAtual?.ultimaViradaCaixaEm) {
+    return listarVendasDesde(caixaAtual.ultimaViradaCaixaEm)
+  }
+  return listarVendasDesde(isoInicioCalendarioSp())
+}
+
 async function seedProdutosFixos() {
   const snap = await produtosCol.get()
   const existentes = snap.docs.map((doc) => ({ ref: doc.ref, data: doc.data() || {} }))
@@ -667,18 +822,20 @@ app.get('/produtos', async (_, res) => {
 })
 
 app.post('/produtos', async (req, res) => {
-  const { nome, preco = 0, estoque = 0 } = req.body || {}
+  const { nome, preco = 0, estoque = 0, vendePorGramas: bodyVpg } = req.body || {}
   if (!nome) return res.status(400).json({ error: 'nome é obrigatório' })
   const nomeFinal = String(nome).trim()
   const fixo = PRODUTOS_FIXOS.some(
     (item) => normalizarNomeProduto(item) === normalizarNomeProduto(nomeFinal)
   )
+  const vendePorGramas = fixo === true ? false : bodyVpg === true
 
   const novo = {
     nome: nomeFinal,
     preco: fixo ? 0 : Number(preco) || 0,
     estoque: Math.max(0, Number(estoque) || 0),
     fixo,
+    vendePorGramas,
     created_at: new Date().toISOString(),
   }
   const ref = await produtosCol.add(novo)
@@ -688,7 +845,7 @@ app.post('/produtos', async (req, res) => {
 
 app.put('/produtos/:id', async (req, res) => {
   const { id } = req.params
-  const { nome, preco, estoque } = req.body || {}
+  const { nome, preco, estoque, vendePorGramas } = req.body || {}
 
   const ref = produtosCol.doc(String(id))
   const snap = await ref.get()
@@ -700,7 +857,7 @@ app.put('/produtos/:id', async (req, res) => {
     return res.status(400).json({ error: 'Produto fixo não pode ter o nome alterado' })
   }
 
-  await ref.update({
+  const payloadUpdate = {
     nome: nomeNovo,
     preco:
       atual.fixo === true
@@ -713,7 +870,12 @@ app.put('/produtos/:id', async (req, res) => {
         ? Math.max(0, Number(estoque) || 0)
         : Math.max(0, Number(atual.estoque || 0)),
     updated_at: new Date().toISOString(),
-  })
+  }
+  if (atual.fixo !== true && vendePorGramas !== undefined) {
+    payloadUpdate.vendePorGramas = vendePorGramas === true
+  }
+
+  await ref.update(payloadUpdate)
 
   const atualizado = await ref.get()
   res.json(docToEntity(atualizado))
@@ -926,7 +1088,7 @@ app.post('/comandas', async (req, res) => {
 
 app.post('/comandas/:id/itens', async (req, res) => {
   const comandaId = String(req.params.id)
-  const { produtoId, quantidade = 1, pesoGramas, tipoFrio, valorTotal, valorUnitario } = req.body || {}
+  const { produtoId } = req.body || {}
 
   const comandaRef = comandasCol.doc(comandaId)
   const comandaDoc = await comandaRef.get()
@@ -940,38 +1102,11 @@ app.post('/comandas/:id/itens', async (req, res) => {
   if (!produtoDoc.exists) return res.status(404).json({ error: 'Produto não encontrado' })
   const produto = docToEntity(produtoDoc)
 
-  const isFrios = produtoEhFrios(produto)
-  const isFixo = produtoEhFixo(produto)
-  const qtd = Math.max(1, Number(quantidade) || 1)
-  const pesoNum = Math.max(1, Number(pesoGramas) || 0)
-  const tipoFrioFinal = String(tipoFrio || '').trim()
-  const valorInformado = valorTotal !== undefined ? Number(valorTotal) : Number(valorUnitario)
-  const precoBase = isFixo && Number.isFinite(valorInformado) ? valorInformado : Number(produto.preco || 0)
-  const estoqueNecessario = isFrios ? pesoNum : qtd
-  if (isFrios && !tipoFrioFinal) {
-    return res.status(400).json({ error: 'tipoFrio é obrigatório para produto Frios' })
-  }
-  if (isFixo && (!Number.isFinite(precoBase) || precoBase <= 0)) {
-    return res.status(400).json({ error: 'Informe um valor total maior que zero para produto fixo' })
-  }
+  const resultado = montarItemLinhaProduto(produto, req.body || {})
+  if (resultado.erro) return res.status(400).json({ error: resultado.erro })
+  const { item, estoqueNecessario } = resultado
   if (estoqueDisponivelParaVenda(produto) < estoqueNecessario) {
     return res.status(400).json({ error: 'Estoque insuficiente' })
-  }
-
-  const subtotal = isFixo ? precoBase : isFrios ? precoBase * (pesoNum / 100) : precoBase * qtd
-  const item = {
-    id: gerarId(),
-    produto_id: produto.id,
-    produtoId: produto.id,
-    nome: isFrios ? `${produto.nome} - ${tipoFrioFinal}` : produto.nome,
-    preco: precoBase,
-    quantidade: isFixo || isFrios ? 1 : qtd,
-    unidadeMedida: isFixo ? 'valor_total' : isFrios ? 'gramas' : 'unidade',
-    pesoGramas: isFrios ? pesoNum : null,
-    tipoFrio: isFrios ? tipoFrioFinal : null,
-    valorManualTotal: isFixo,
-    subtotal,
-    created_at: new Date().toISOString(),
   }
 
   const itens = [...(comanda.itens || []), item]
@@ -1003,6 +1138,12 @@ app.patch('/comandas/:id/itens/:itemId', async (req, res) => {
     itens.splice(idx, 1)
   } else {
     const item = itens[idx]
+    if (item.unidadeMedida === 'gramas') {
+      return res.status(400).json({
+        error:
+          'Itens por peso (gramas) não permitem alterar a quantidade aqui. Remova o item e adicione novamente com o peso desejado.',
+      })
+    }
     if (item.valorManualTotal === true) {
       return res.status(400).json({ error: 'Item de valor total não permite alterar quantidade' })
     }
@@ -1154,13 +1295,7 @@ app.get('/caixa/status', async (_, res) => {
 
 app.get('/caixa/totais-hoje', async (_, res) => {
   const caixaAtual = await virarCaixaAutomaticamenteSeNecessario()
-  const vendasBase =
-    caixaAtual.aberto && caixaAtual.caixaId
-      ? await listarVendasDoCaixa(caixaAtual.caixaId)
-      : (await listarVendasHistorico()).filter((v) => {
-          if (!caixaAtual.ultimaViradaCaixaEm) return isHoje(v.data)
-          return new Date(v.data || 0) >= new Date(caixaAtual.ultimaViradaCaixaEm)
-        })
+  const vendasBase = await listarVendasParaTotaisCaixa(caixaAtual)
   const totais = somarTotais(vendasBase)
   const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
   const dinheiroLiquido = Number(totais.totalDinheiro || 0) - Number(totalSangrias || 0)
@@ -1205,9 +1340,7 @@ app.post('/caixa/fechar', async (req, res) => {
   if (!caixaAtual.aberto) return res.status(400).json({ error: 'Caixa já está fechado' })
 
   const caixaId = caixaAtual.caixaId || null
-  const vendasBase = caixaId
-    ? await listarVendasDoCaixa(caixaId)
-    : (await listarVendasHistorico()).filter((v) => isHoje(v.data))
+  const vendasBase = caixaId ? await listarVendasDoCaixa(caixaId) : await listarVendasDesde(isoInicioCalendarioSp())
   const totais = somarTotais(vendasBase)
   const totalSangrias = caixaId ? await getTotalSangriasDoCaixa(caixaId) : 0
   const dinheiroLiquido = Number(totais.totalDinheiro || 0) - Number(totalSangrias || 0)
@@ -1416,7 +1549,7 @@ app.delete('/caixa/dados', async (_, res) => {
 
 app.post('/vendas/:id/itens', async (req, res) => {
   const { id } = req.params
-  const { produtoId, quantidade = 1, pesoGramas, tipoFrio, valorTotal, valorUnitario } = req.body || {}
+  const { produtoId } = req.body || {}
 
   const vendaRef = vendasCol.doc(String(id))
   const vendaDoc = await vendaRef.get()
@@ -1428,37 +1561,11 @@ app.post('/vendas/:id/itens', async (req, res) => {
   if (!produtoDoc.exists) return res.status(404).json({ error: 'Produto não encontrado' })
   const produto = docToEntity(produtoDoc)
 
-  const isFrios = produtoEhFrios(produto)
-  const isFixo = produtoEhFixo(produto)
-  const qtd = Math.max(1, Number(quantidade) || 1)
-  const pesoNum = Math.max(1, Number(pesoGramas) || 0)
-  const tipoFrioFinal = String(tipoFrio || '').trim()
-  const valorInformado = valorTotal !== undefined ? Number(valorTotal) : Number(valorUnitario)
-  const precoBase = isFixo && Number.isFinite(valorInformado) ? valorInformado : Number(produto.preco || 0)
-  const estoqueNecessario = isFrios ? pesoNum : qtd
-  if (isFrios && !tipoFrioFinal) {
-    return res.status(400).json({ error: 'tipoFrio é obrigatório para produto Frios' })
-  }
-  if (isFixo && (!Number.isFinite(precoBase) || precoBase <= 0)) {
-    return res.status(400).json({ error: 'Informe um valor total maior que zero para produto fixo' })
-  }
+  const resultado = montarItemLinhaProduto(produto, req.body || {})
+  if (resultado.erro) return res.status(400).json({ error: resultado.erro })
+  const { item, estoqueNecessario } = resultado
   if (estoqueDisponivelParaVenda(produto) < estoqueNecessario) {
     return res.status(400).json({ error: 'Estoque insuficiente' })
-  }
-
-  const item = {
-    id: gerarId(),
-    produto_id: produto.id,
-    produtoId: produto.id,
-    nome: isFrios ? `${produto.nome} - ${tipoFrioFinal}` : produto.nome,
-    preco: precoBase,
-    quantidade: isFixo || isFrios ? 1 : qtd,
-    unidadeMedida: isFixo ? 'valor_total' : isFrios ? 'gramas' : 'unidade',
-    pesoGramas: isFrios ? pesoNum : null,
-    tipoFrio: isFrios ? tipoFrioFinal : null,
-    valorManualTotal: isFixo,
-    subtotal: isFixo ? precoBase : isFrios ? precoBase * (pesoNum / 100) : precoBase * qtd,
-    created_at: new Date().toISOString(),
   }
 
   const itens = [...(venda.itens || []), item]
@@ -1528,13 +1635,9 @@ app.get('/dashboard/resumo', async (_, res) => {
   const produtosSnap = await produtosCol.get()
   const comandasAbertasSnap = await comandasCol.where('status', '==', 'aberta').get()
   const comandasAguardandoSnap = await comandasCol.where('status', '==', 'aguardando_pagamento').get()
-  const vendas = await listarVendasHistorico()
   const caixaAtual = await virarCaixaAutomaticamenteSeNecessario()
-  const vendasHoje = caixaAtual.ultimaViradaCaixaEm
-    ? vendas.filter((v) => new Date(v.data || 0) >= new Date(caixaAtual.ultimaViradaCaixaEm))
-    : vendas.filter((v) => isHoje(v.data))
+  const vendasHoje = await listarVendasParaTotaisCaixa(caixaAtual)
   const totaisHoje = somarTotais(vendasHoje)
-  const totalHistorico = vendas.reduce((acc, v) => acc + Number(v.total || 0), 0)
   const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
   const dinheiroLiquido = Number(totaisHoje.totalDinheiro || 0) - Number(totalSangrias || 0)
 
@@ -1554,8 +1657,8 @@ app.get('/dashboard/resumo', async (_, res) => {
     comandasAbertas: comandasAbertasSnap.size,
     comandasAguardandoPagamento: comandasAguardandoSnap.size,
     vendasFinalizadasHoje: vendasHoje.length,
-    totalHistorico,
-    totalVendas: vendas.length,
+    totalHistorico: 0,
+    totalVendas: vendasHoje.length,
     caixaAberto: caixaAtual.aberto,
     estoqueBaixo,
     produtosEstoqueBaixo: produtosEstoqueBaixo.map((p) => ({

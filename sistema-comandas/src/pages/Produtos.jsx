@@ -16,6 +16,7 @@ export default function Produtos() {
   const [formNome, setFormNome] = useState('')
   const [formPreco, setFormPreco] = useState('')
   const [formEstoque, setFormEstoque] = useState('0')
+  const [formVendePorGramas, setFormVendePorGramas] = useState(false)
 
   function sanitizarInteiro(valor) {
     return String(valor || '').replace(/\D/g, '')
@@ -25,6 +26,7 @@ export default function Produtos() {
     setFormNome('')
     setFormPreco('')
     setFormEstoque('0')
+    setFormVendePorGramas(false)
     setEditando(null)
     setMostrarForm(false)
   }
@@ -40,11 +42,12 @@ export default function Produtos() {
     }
 
     const estoque = Math.max(0, parseInt(formEstoque, 10) || 0)
+    const vendePorGramas = !ehFixo && formVendePorGramas === true
     try {
       if (editando) {
-        await editarProduto(editando.id, nome, ehFixo ? 0 : preco, estoque)
+        await editarProduto(editando.id, nome, ehFixo ? 0 : preco, estoque, vendePorGramas)
       } else {
-        await addProduto({ nome, preco, estoque })
+        await addProduto({ nome, preco, estoque, vendePorGramas })
       }
     } catch (error) {
       playSomErro()
@@ -61,6 +64,7 @@ export default function Produtos() {
     setFormNome(produto.nome)
     setFormPreco(numeroParaMoedaInput(produto.preco))
     setFormEstoque(String(produto.estoque ?? 0))
+    setFormVendePorGramas(produto.fixo !== true && produto.vendePorGramas === true)
     setMostrarForm(true)
   }
 
@@ -161,7 +165,7 @@ export default function Produtos() {
             </div>
             <div>
               <label className="block text-sm font-medium text-amber-900 mb-1">
-                Preço (R$)
+                Preço (R$){editando?.fixo !== true && formVendePorGramas ? ' — cada 100 g' : ''}
               </label>
               <input
                 type="text"
@@ -177,6 +181,23 @@ export default function Produtos() {
                 <p className="text-xs text-stone-500 mt-1">
                   Produto fixo: o valor é informado no caixa na hora da venda.
                 </p>
+              )}
+              {editando?.fixo !== true && (
+                <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={formVendePorGramas}
+                    onChange={(e) => setFormVendePorGramas(e.target.checked)}
+                    className="mt-1 size-4 rounded border-amber-300 text-amber-700"
+                  />
+                  <span className="text-sm text-stone-700 leading-snug">
+                    <span className="font-semibold text-amber-900">Vender por peso (gramas)</span>
+                    <span className="block text-xs text-stone-600 mt-0.5">
+                      No caixa/comanda será pedido peso (g ou kg). O preço acima é por 100 g. Opcionalmente dá para
+                      informar valor total da peça. Produtos sem esta opção continuam por quantidade (unidade).
+                    </span>
+                  </span>
+                </label>
               )}
             </div>
             <div>
@@ -242,6 +263,9 @@ export default function Produtos() {
                   </h3>
                   {produto.fixo === true && (
                     <p className="text-xs text-amber-700 mt-1">Produto fixo</p>
+                  )}
+                  {produto.fixo !== true && produto.vendePorGramas === true && (
+                    <p className="text-xs text-amber-800 mt-1 font-medium">Por peso (g) — preço / 100 g</p>
                   )}
                   <p className="text-xl font-bold text-amber-800 tabular-nums mt-1">
                     {produto.fixo === true

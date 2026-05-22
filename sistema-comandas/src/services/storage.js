@@ -20,10 +20,12 @@ export async function addProduto(produto) {
   return result
 }
 
-export async function editarProduto(id, nome, preco, estoque) {
+export async function editarProduto(id, nome, preco, estoque, vendePorGramas) {
+  const body = { nome, preco, estoque }
+  if (vendePorGramas !== undefined) body.vendePorGramas = vendePorGramas
   const result = await apiRequest(`/produtos/${id}`, {
     method: 'PUT',
-    body: { nome, preco, estoque },
+    body,
   })
   emitUpdate()
   return result

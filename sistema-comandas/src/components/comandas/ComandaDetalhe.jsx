@@ -9,6 +9,7 @@ import {
 import { useToast } from '../../contexts/ToastContext'
 import { playSomAcao, playSomErro } from '../../utils/sons'
 import { formatarCentavosInput, moedaInputParaNumero } from '../../utils/moeda'
+import { produtoEhFriosNome, produtoVendePorGramas } from '../../utils/produto'
 
 export default function ComandaDetalhe({
   comanda,
@@ -27,6 +28,7 @@ export default function ComandaDetalhe({
   const [tipoFrio, setTipoFrio] = useState('Presunto')
   const [pesoFrioInput, setPesoFrioInput] = useState('100')
   const [pesoFrioUnidade, setPesoFrioUnidade] = useState('g')
+  const [valorOpcionalPeso, setValorOpcionalPeso] = useState('')
   const toast = useToast()
   const tiposFrios = ['Presunto', 'Queijo', 'Mortadela', 'Peito de Peru', 'Salame']
 
@@ -68,11 +70,8 @@ export default function ComandaDetalhe({
   )
   const produtoSelecionadoObj = produtos.find((p) => String(p.id) === String(produtoSelecionado))
   const selecionadoEhFixo = produtoSelecionadoObj?.fixo === true
-  const selecionadoEhFrios =
-    String(produtoSelecionadoObj?.nome || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase() === 'frios'
+  const selecionadoEhFrios = produtoEhFriosNome(produtoSelecionadoObj?.nome)
+  const selecionadoPorGramas = produtoVendePorGramas(produtoSelecionadoObj)
 
   useEffect(() => {
     if (isMobile || isTablet) {
@@ -85,23 +84,31 @@ export default function ComandaDetalhe({
     const quantidadeNum = Math.max(1, parseInt(quantidade, 10) || 1)
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
-    const estoqueNecessario = selecionadoEhFrios ? pesoGramas : quantidadeNum
+    const estoqueNecessario = selecionadoPorGramas ? pesoGramas : quantidadeNum
     const valorTotalNum = moedaInputParaNumero(valorTotal)
+    const valorOpcionalNum = moedaInputParaNumero(valorOpcionalPeso)
 
     if (estoqueDisponivel(produtoSelecionado) < estoqueNecessario) {
       playSomErro()
       toast.show('Estoque insuficiente para este produto', 'error')
       return
     }
-    if (selecionadoEhFixo && (!Number.isFinite(valorTotalNum) || valorTotalNum <= 0)) {
+    if (selecionadoEhFixo && !selecionadoPorGramas && (!Number.isFinite(valorTotalNum) || valorTotalNum <= 0)) {
       playSomErro()
       toast.show('Informe o valor total para produto fixo', 'error')
       return
     }
 
-    const payload = selecionadoEhFrios
-      ? { pesoGramas, tipoFrio, ...(selecionadoEhFixo ? { valorTotal: valorTotalNum } : {}) }
-      : { quantidade: quantidadeNum, ...(selecionadoEhFixo ? { valorTotal: valorTotalNum } : {}) }
+    let payload
+    if (selecionadoPorGramas) {
+      payload = {
+        pesoGramas,
+        ...(selecionadoEhFrios ? { tipoFrio } : {}),
+        ...(Number.isFinite(valorOpcionalNum) && valorOpcionalNum > 0 ? { valorTotal: valorOpcionalNum } : {}),
+      }
+    } else {
+      payload = { quantidade: quantidadeNum, ...(selecionadoEhFixo ? { valorTotal: valorTotalNum } : {}) }
+    }
     try {
       const atualizada = await adicionarItem(comanda.id, produtoSelecionado, payload)
       if (atualizada) {
@@ -114,6 +121,7 @@ export default function ComandaDetalhe({
         setTipoFrio('Presunto')
         setPesoFrioInput('100')
         setPesoFrioUnidade('g')
+        setValorOpcionalPeso('')
         setMostrarAdicionar(!isMobile) // no mobile continua aberto
       } else {
         playSomErro()
@@ -250,27 +258,35 @@ export default function ComandaDetalhe({
             {produtoSelecionado && (
             <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {selecionadoEhFrios ? (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-amber-900 mb-1">Tipo de frio</label>
-                  <select
-                    value={tipoFrio}
-                    onChange={(e) => setTipoFrio(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
-                  >
-                    {tiposFrios.map((tipo) => (
-                      <option key={tipo} value={tipo}>
-                        {tipo}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="flex gap-2">
+              {selecionadoPorGramas ? (
+                <div className="space-y-2 sm:col-span-2">
+                  {selecionadoEhFrios && (
+                    <>
+                      <label className="block text-sm font-medium text-amber-900 mb-1">Tipo de frio</label>
+                      <select
+                        value={tipoFrio}
+                        onChange={(e) => setTipoFrio(e.target.value)}
+                        className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 max-w-md"
+                      >
+                        {tiposFrios.map((tipo) => (
+                          <option key={tipo} value={tipo}>
+                            {tipo}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  <label className="block text-sm font-medium text-amber-900 mb-1">
+                    Peso {!selecionadoEhFrios && <span className="font-normal text-stone-500">(produto vendido por gramagem)</span>}
+                  </label>
+                  <div className="flex gap-2 max-w-md">
                     <input
                       type="text"
                       inputMode="decimal"
                       value={pesoFrioInput}
                       onChange={(e) => setPesoFrioInput(e.target.value.replace(/[^\d,.]/g, ''))}
                       className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
+                      placeholder={selecionadoEhFrios ? 'Ex: 150' : 'Quantidade em g ou kg'}
                     />
                     <select
                       value={pesoFrioUnidade}
@@ -280,6 +296,22 @@ export default function ComandaDetalhe({
                       <option value="g">g</option>
                       <option value="kg">kg</option>
                     </select>
+                  </div>
+                  <div className="pt-2 max-w-md">
+                    <label className="block text-sm font-medium text-amber-900 mb-1">
+                      Valor total (opcional)
+                    </label>
+                    <p className="text-xs text-stone-600 mb-1">
+                      Se preencher, este valor será usado no lugar de preço × peso (negociado ou balança).
+                    </p>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={valorOpcionalPeso}
+                      onChange={(e) => setValorOpcionalPeso(formatarCentavosInput(e.target.value))}
+                      placeholder="Em branco = usa preço por 100 g"
+                      className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 outline-none text-amber-900 font-mono tabular-nums"
+                    />
                   </div>
                 </div>
               ) : (
@@ -294,15 +326,15 @@ export default function ComandaDetalhe({
                     value={quantidade}
                     onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, ''))}
                     onBlur={() => {
-                      const quantidadeNum = Math.max(1, parseInt(quantidade, 10) || 1)
-                      setQuantidade(String(quantidadeNum))
+                      const quantidadeNumLocal = Math.max(1, parseInt(quantidade, 10) || 1)
+                      setQuantidade(String(quantidadeNumLocal))
                     }}
                     className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900 font-mono tabular-nums"
                   />
                 </div>
               )}
             </div>
-            {selecionadoEhFixo && (
+            {selecionadoEhFixo && !selecionadoPorGramas && (
               <div>
                 <label className="block text-sm font-medium text-amber-900 mb-1">Valor total (R$)</label>
                 <input

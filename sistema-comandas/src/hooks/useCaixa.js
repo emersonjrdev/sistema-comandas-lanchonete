@@ -78,7 +78,7 @@ export function useCaixa() {
   useRefreshOnStorageUpdate(refresh)
 
   useEffect(() => {
-    const intervaloMs = 2000
+    const intervaloMs = 15000
     const intervalId = window.setInterval(() => {
       refresh().catch(() => {})
     }, intervaloMs)
