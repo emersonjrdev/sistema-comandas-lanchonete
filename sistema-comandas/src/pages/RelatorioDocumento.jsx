@@ -207,8 +207,8 @@ export default function RelatorioDocumento() {
               className="h-16 w-16 mx-auto mb-3 rounded-full object-contain"
             />
             <h1 className="text-xl md:text-2xl font-bold text-amber-900">Padaria Grande Família</h1>
-            <p className="text-lg font-semibold text-amber-800 mt-2 capitalize">
-              Relatório de uso do sistema — {relatorio.periodo?.label}
+            <p className="text-lg font-semibold text-amber-800 mt-2">
+              Relatório de uso do sistema — {tituloMesSelecionado}
             </p>
             <p className="text-sm text-stone-500 mt-2">
               Documento gerado em {formatarGeradoEm(relatorio.geradoEm)} (horário de Brasília)

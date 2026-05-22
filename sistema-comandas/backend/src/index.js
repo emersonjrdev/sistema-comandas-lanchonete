@@ -621,11 +621,12 @@ async function listarVendasParaTotaisCaixa(caixaAtual) {
 }
 
 function intervaloMesRelatorio(ano, mes) {
+  const mesNum = Number(mes)
   const pad = (n) => String(n).padStart(2, '0')
-  const ultimoDia = new Date(ano, mes, 0).getDate()
-  const desde = new Date(`${ano}-${pad(mes)}-01T00:00:00-03:00`).toISOString()
-  const ate = new Date(`${ano}-${pad(mes)}-${pad(ultimoDia)}T23:59:59.999-03:00`).toISOString()
-  const label = new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', {
+  const ultimoDia = new Date(ano, mesNum, 0).getDate()
+  const desde = new Date(`${ano}-${pad(mesNum)}-01T00:00:00-03:00`).toISOString()
+  const ate = new Date(`${ano}-${pad(mesNum)}-${pad(ultimoDia)}T23:59:59.999-03:00`).toISOString()
+  const label = new Date(`${ano}-${pad(mesNum)}-15T12:00:00-03:00`).toLocaleDateString('pt-BR', {
     month: 'long',
     year: 'numeric',
     timeZone: 'America/Sao_Paulo',
