@@ -620,19 +620,27 @@ async function listarVendasParaTotaisCaixa(caixaAtual) {
   return listarVendasDesde(isoInicioCalendarioSp())
 }
 
-async function seedProdutosFixos() {
-  const snap = await produtosCol.get()
-  const existentes = snap.docs.map((doc) => ({ ref: doc.ref, data: doc.data() || {} }))
-  const mapaPorNome = new Map(
-    existentes.map((item) => [normalizarNomeProduto(item.data.nome), item])
-  )
+function erroFirestoreQuota(err) {
+  const code = err?.code
+  const msg = String(err?.message || err?.details || '')
+  return code === 8 || /RESOURCE_EXHAUSTED|Quota exceeded/i.test(msg)
+}
 
-  const chavePaoAntigo = normalizarNomeProduto('Pão')
-  const chavePaoNovo = normalizarNomeProduto('Pão Francês')
-  const paoAntigo = mapaPorNome.get(chavePaoAntigo)
-  const paoNovo = mapaPorNome.get(chavePaoNovo)
-  if (paoAntigo && !paoNovo) {
-    await paoAntigo.ref.set(
+const MSG_COTA_FIRESTORE =
+  'Cota do Firestore excedida. Feche abas do sistema, aguarde alguns minutos ou confira o billing no Firebase.'
+
+function responderErroFirestore(res, err) {
+  if (erroFirestoreQuota(err)) {
+    return res.status(503).json({ error: MSG_COTA_FIRESTORE })
+  }
+  return res.status(500).json({ error: err?.message || 'Erro interno' })
+}
+
+async function seedProdutosFixos() {
+  const paoSnap = await produtosCol.where('nome', '==', 'Pão').limit(1).get()
+  const paoNovoSnap = await produtosCol.where('nome', '==', 'Pão Francês').limit(1).get()
+  if (!paoSnap.empty && paoNovoSnap.empty) {
+    await paoSnap.docs[0].ref.set(
       {
         nome: 'Pão Francês',
         fixo: true,
@@ -640,27 +648,23 @@ async function seedProdutosFixos() {
       },
       { merge: true }
     )
-    mapaPorNome.delete(chavePaoAntigo)
-    mapaPorNome.set(chavePaoNovo, {
-      ref: paoAntigo.ref,
-      data: { ...(paoAntigo.data || {}), nome: 'Pão Francês', fixo: true },
-    })
   }
 
   for (const nomeFixo of PRODUTOS_FIXOS) {
-    const chave = normalizarNomeProduto(nomeFixo)
-    const existente = mapaPorNome.get(chave)
-    if (existente) {
+    const snap = await produtosCol.where('nome', '==', nomeFixo).limit(1).get()
+    if (!snap.empty) {
+      const ref = snap.docs[0].ref
+      const data = snap.docs[0].data() || {}
       if (
-        existente.data.fixo !== true ||
-        Number(existente.data.estoque || 0) < 999999 ||
-        Number(existente.data.preco || 0) !== 0
+        data.fixo !== true ||
+        Number(data.estoque || 0) < 999999 ||
+        Number(data.preco || 0) !== 0
       ) {
-        await existente.ref.set(
+        await ref.set(
           {
             fixo: true,
             preco: 0,
-            estoque: Math.max(999999, Number(existente.data.estoque || 0)),
+            estoque: Math.max(999999, Number(data.estoque || 0)),
             updated_at: new Date().toISOString(),
           },
           { merge: true }
@@ -677,6 +681,24 @@ async function seedProdutosFixos() {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
+  }
+}
+
+async function executarSeedInicial() {
+  if (process.env.DISABLE_STARTUP_SEED === 'true') {
+    console.warn('[seed] Desabilitado (DISABLE_STARTUP_SEED=true)')
+    return
+  }
+  try {
+    await seedUsuarios()
+    await seedProdutosFixos()
+    console.log('[seed] Usuários e produtos fixos verificados')
+  } catch (err) {
+    if (erroFirestoreQuota(err)) {
+      console.warn('[seed] Cota Firestore esgotada — API sobe mesmo assim. Tente de novo mais tarde.')
+      return
+    }
+    console.warn('[seed] Falha não fatal:', err?.message || err)
   }
 }
 
@@ -698,9 +720,6 @@ async function seedUsuarios() {
     created_at: now,
   })
 }
-
-await seedUsuarios()
-await seedProdutosFixos()
 
 function normalizarOrigem(origem) {
   return String(origem || '')
@@ -740,9 +759,16 @@ app.use(express.json())
 
 app.get('/health', async (_, res) => {
   try {
-    await db.collection('healthcheck').limit(1).get()
+    await caixaConfigRef.get()
     res.json({ status: 'ok', database: 'firestore' })
   } catch (error) {
+    if (erroFirestoreQuota(error)) {
+      return res.status(503).json({
+        status: 'degraded',
+        database: 'firestore',
+        error: 'Cota Firestore excedida. Aguarde ou verifique billing no Firebase.',
+      })
+    }
     res.status(500).json({ status: 'error', database: 'firestore', error: error.message })
   }
 })
@@ -1289,17 +1315,25 @@ app.get('/caixa/historico', exigirSessaoFinanceiro, async (_, res) => {
 })
 
 app.get('/caixa/status', async (_, res) => {
-  const status = await virarCaixaAutomaticamenteSeNecessario()
-  res.json(status)
+  try {
+    const status = await virarCaixaAutomaticamenteSeNecessario()
+    res.json(status)
+  } catch (err) {
+    responderErroFirestore(res, err)
+  }
 })
 
 app.get('/caixa/totais-hoje', async (_, res) => {
-  const caixaAtual = await virarCaixaAutomaticamenteSeNecessario()
-  const vendasBase = await listarVendasParaTotaisCaixa(caixaAtual)
-  const totais = somarTotais(vendasBase)
-  const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
-  const dinheiroLiquido = Number(totais.totalDinheiro || 0) - Number(totalSangrias || 0)
-  res.json({ ...totais, totalSangrias, dinheiroLiquido, caixaId: caixaAtual.caixaId || null, vendasHoje: vendasBase })
+  try {
+    const caixaAtual = await virarCaixaAutomaticamenteSeNecessario()
+    const vendasBase = await listarVendasParaTotaisCaixa(caixaAtual)
+    const totais = somarTotais(vendasBase)
+    const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
+    const dinheiroLiquido = Number(totais.totalDinheiro || 0) - Number(totalSangrias || 0)
+    res.json({ ...totais, totalSangrias, dinheiroLiquido, caixaId: caixaAtual.caixaId || null, vendasHoje: vendasBase })
+  } catch (err) {
+    responderErroFirestore(res, err)
+  }
 })
 
 app.post('/caixa/abrir', async (req, res) => {
@@ -1632,6 +1666,7 @@ app.post('/vendas/:id/cancelar', async (req, res) => {
 })
 
 app.get('/dashboard/resumo', async (_, res) => {
+  try {
   const produtosSnap = await produtosCol.get()
   const comandasAbertasSnap = await comandasCol.where('status', '==', 'aberta').get()
   const comandasAguardandoSnap = await comandasCol.where('status', '==', 'aguardando_pagamento').get()
@@ -1667,10 +1702,32 @@ app.get('/dashboard/resumo', async (_, res) => {
       estoque: Number(p.estoque || 0),
     })),
   })
+  } catch (err) {
+    responderErroFirestore(res, err)
+  }
+})
+
+app.use((err, _req, res, next) => {
+  if (erroFirestoreQuota(err)) {
+    return res.status(503).json({
+      error:
+        'Cota do Firestore excedida. Verifique uso no Firebase Console ou aguarde a renovação da cota.',
+    })
+  }
+  next(err)
+})
+
+process.on('unhandledRejection', (reason) => {
+  if (erroFirestoreQuota(reason)) {
+    console.warn('[firestore] Cota excedida em operação assíncrona:', reason?.message || reason)
+    return
+  }
+  console.error('[unhandledRejection]', reason)
 })
 
 const port = Number(process.env.PORT || 3001)
 app.listen(port, () => {
   console.log(`API rodando na porta ${port}`)
   console.log('Banco: Firestore')
+  executarSeedInicial()
 })
