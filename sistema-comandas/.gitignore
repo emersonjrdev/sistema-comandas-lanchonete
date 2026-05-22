@@ -10,6 +10,8 @@ dist/
 .env.local
 backend/.env
 backend/data/
+backend/relatorios/*.html
+backend/relatorios/*.csv
 *.sqlite
 *.sqlite3
 

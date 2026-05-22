@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "relatorio:mes": "node scripts/relatorio-caixa-mes.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

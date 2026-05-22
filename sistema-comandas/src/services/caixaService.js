@@ -47,6 +47,11 @@ export async function getRelatoriosCaixa() {
   return apiRequest('/caixa/relatorios')
 }
 
+export async function getRelatorioMensalCaixa(ano, mes) {
+  const params = new URLSearchParams({ ano: String(ano), mes: String(mes) })
+  return apiRequest(`/caixa/relatorio-mensal?${params}`)
+}
+
 export async function limparDadosCaixa() {
   try {
     const result = await apiRequest('/caixa/dados', { method: 'DELETE' })

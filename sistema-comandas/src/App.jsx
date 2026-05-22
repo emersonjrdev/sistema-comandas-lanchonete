@@ -13,6 +13,7 @@ import Produtos from './pages/Produtos'
 import Financeiro from './pages/Financeiro'
 import Estoque from './pages/Estoque'
 import RelatorioCaixa from './pages/RelatorioCaixa'
+import RelatorioDocumento from './pages/RelatorioDocumento'
 
 import MainLayout from './layouts/MainLayout'
 
@@ -41,6 +42,10 @@ function RotasProtegidas() {
         <Route path="estoque" element={isAdmin ? <Estoque /> : <Navigate to="/comandas" replace />} />
         <Route path="financeiro" element={isAdmin ? <Financeiro /> : <Navigate to="/comandas" replace />} />
         <Route path="relatorio-caixa" element={isAdmin ? <RelatorioCaixa /> : <Navigate to="/comandas" replace />} />
+        <Route
+          path="relatorio-documento"
+          element={isAdmin ? <RelatorioDocumento /> : <Navigate to="/comandas" replace />}
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
