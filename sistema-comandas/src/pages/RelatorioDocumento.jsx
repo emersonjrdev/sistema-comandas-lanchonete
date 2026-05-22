@@ -73,14 +73,16 @@ export default function RelatorioDocumento() {
   }, [atual.ano])
 
   const carregar = useCallback(
-    async (anoAlvo = ano, mesAlvo = mes) => {
+    async (anoAlvo, mesAlvo) => {
+      const anoReq = Number.isInteger(anoAlvo) ? anoAlvo : ano
+      const mesReq = Number.isInteger(mesAlvo) ? mesAlvo : mes
       const seq = ++requisicaoSeq.current
       setCarregando(true)
       setErro('')
       try {
-        const dados = await getRelatorioMensalCaixa(anoAlvo, mesAlvo)
+        const dados = await getRelatorioMensalCaixa(anoReq, mesReq)
         if (seq !== requisicaoSeq.current) return
-        if (dados?.periodo?.ano !== anoAlvo || dados?.periodo?.mes !== mesAlvo) {
+        if (dados?.periodo?.ano !== anoReq || dados?.periodo?.mes !== mesReq) {
           throw new Error('Resposta da API não corresponde ao mês selecionado. Tente novamente.')
         }
         setRelatorio(dados)
@@ -161,7 +163,7 @@ export default function RelatorioDocumento() {
           </select>
           <button
             type="button"
-            onClick={carregar}
+            onClick={() => carregar()}
             disabled={carregando}
             className="px-4 py-2 rounded-lg bg-amber-700 text-white font-semibold hover:bg-amber-800 disabled:opacity-60"
           >
