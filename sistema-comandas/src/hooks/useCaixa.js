@@ -78,20 +78,40 @@ export function useCaixa() {
   useRefreshOnStorageUpdate(refresh)
 
   useEffect(() => {
-    const intervaloMs = 15000
-    const intervalId = window.setInterval(() => {
-      refresh().catch(() => {})
-    }, intervaloMs)
+    const intervaloMs = 30000
+    let intervalId = null
+
+    function iniciarPolling() {
+      if (intervalId != null) return
+      intervalId = window.setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          refresh().catch(() => {})
+        }
+      }, intervaloMs)
+    }
+
+    function pararPolling() {
+      if (intervalId != null) {
+        window.clearInterval(intervalId)
+        intervalId = null
+      }
+    }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         refresh().catch(() => {})
+        iniciarPolling()
+      } else {
+        pararPolling()
       }
     }
 
+    if (document.visibilityState === 'visible') {
+      iniciarPolling()
+    }
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
-      window.clearInterval(intervalId)
+      pararPolling()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [refresh])
