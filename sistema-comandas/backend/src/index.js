@@ -695,9 +695,28 @@ async function seedProdutosFixos() {
   }
 }
 
+function seedInicialHabilitado() {
+  if (process.env.DISABLE_STARTUP_SEED === 'true') return false
+  if (process.env.ENABLE_STARTUP_SEED === 'true') return true
+  if (process.env.RENDER) return false
+  return true
+}
+
+function credenciaisEmergenciaOk(nomeNormalizado, senhaInformada) {
+  const senhaEnv = process.env.EMERGENCY_ADMIN_SENHA
+  const nomeEnv = String(process.env.EMERGENCY_ADMIN_NOME || 'admin').trim().toLowerCase()
+  if (!senhaEnv || String(senhaEnv).length < 4) return false
+  return nomeNormalizado === nomeEnv && senhaInformada === String(senhaEnv)
+}
+
+function respostaLoginEmergencia() {
+  const nome = String(process.env.EMERGENCY_ADMIN_NOME || 'admin').trim()
+  return { id: 'emergencia-admin', nome, perfil: 'admin' }
+}
+
 async function executarSeedInicial() {
-  if (process.env.DISABLE_STARTUP_SEED === 'true') {
-    console.warn('[seed] Desabilitado (DISABLE_STARTUP_SEED=true)')
+  if (!seedInicialHabilitado()) {
+    console.warn('[seed] Desabilitado (Render/produção ou DISABLE_STARTUP_SEED=true)')
     return
   }
   try {
@@ -773,12 +792,17 @@ app.get('/health', (_req, res) => {
 })
 
 app.post('/auth/login', async (req, res) => {
-  try {
-    const { nome, senha } = req.body || {}
-    if (!nome || !senha) return res.status(400).json({ error: 'nome e senha são obrigatórios' })
+  const { nome, senha } = req.body || {}
+  if (!nome || !senha) return res.status(400).json({ error: 'nome e senha são obrigatórios' })
 
-    const nomeNormalizado = String(nome).trim().toLowerCase()
-    const senhaInformada = String(senha)
+  const nomeNormalizado = String(nome).trim().toLowerCase()
+  const senhaInformada = String(senha)
+
+  try {
+    if (credenciaisEmergenciaOk(nomeNormalizado, senhaInformada)) {
+      return res.json(respostaLoginEmergencia())
+    }
+
     const snap = await usuariosCol.where('nome', '==', nomeNormalizado).limit(1).get()
     const userDoc = snap.docs.find((doc) => String(doc.data()?.senha) === senhaInformada)
 
@@ -786,6 +810,10 @@ app.post('/auth/login', async (req, res) => {
     const user = docToEntity(userDoc)
     return res.json({ id: user.id, nome: user.nome, perfil: user.perfil })
   } catch (err) {
+    if (erroFirestoreQuota(err) && credenciaisEmergenciaOk(nomeNormalizado, senhaInformada)) {
+      console.warn('[auth] Login emergência (cota Firestore)')
+      return res.json(respostaLoginEmergencia())
+    }
     responderErroFirestore(res, err)
   }
 })
