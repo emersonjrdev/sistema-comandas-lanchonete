@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
@@ -53,6 +53,18 @@ export default function RelatorioDocumento() {
   const [relatorio, setRelatorio] = useState(null)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
+  const requisicaoSeq = useRef(0)
+  const toastRef = useRef(toast)
+  toastRef.current = toast
+
+  const tituloMesSelecionado = useMemo(() => {
+    const nome = MESES.find((m) => m.valor === mes)?.nome || String(mes)
+    return `${nome} de ${ano}`
+  }, [ano, mes])
+
+  const relatorioDesatualizado =
+    relatorio &&
+    (relatorio.periodo?.ano !== ano || relatorio.periodo?.mes !== mes)
 
   const anosDisponiveis = useMemo(() => {
     const lista = []
@@ -60,25 +72,47 @@ export default function RelatorioDocumento() {
     return lista
   }, [atual.ano])
 
-  const carregar = useCallback(async () => {
-    setCarregando(true)
+  const carregar = useCallback(
+    async (anoAlvo = ano, mesAlvo = mes) => {
+      const seq = ++requisicaoSeq.current
+      setCarregando(true)
+      setErro('')
+      try {
+        const dados = await getRelatorioMensalCaixa(anoAlvo, mesAlvo)
+        if (seq !== requisicaoSeq.current) return
+        if (dados?.periodo?.ano !== anoAlvo || dados?.periodo?.mes !== mesAlvo) {
+          throw new Error('Resposta da API não corresponde ao mês selecionado. Tente novamente.')
+        }
+        setRelatorio(dados)
+      } catch (e) {
+        if (seq !== requisicaoSeq.current) return
+        setRelatorio(null)
+        const msg = e?.message || 'Erro ao carregar relatório'
+        setErro(msg)
+        toastRef.current.show(msg, 'error')
+      } finally {
+        if (seq === requisicaoSeq.current) setCarregando(false)
+      }
+    },
+    [ano, mes]
+  )
+
+  function aoMudarMes(novoMes) {
+    setMes(novoMes)
+    setRelatorio(null)
     setErro('')
-    try {
-      const dados = await getRelatorioMensalCaixa(ano, mes)
-      setRelatorio(dados)
-    } catch (e) {
-      setRelatorio(null)
-      const msg = e?.message || 'Erro ao carregar relatório'
-      setErro(msg)
-      toast.show(msg, 'error')
-    } finally {
-      setCarregando(false)
-    }
-  }, [ano, mes, toast])
+  }
+
+  function aoMudarAno(novoAno) {
+    setAno(novoAno)
+    setRelatorio(null)
+    setErro('')
+  }
 
   useEffect(() => {
-    if (isAdmin) carregar()
-  }, [isAdmin, carregar])
+    if (!isAdmin) return
+    carregar(ano, mes)
+  }, [isAdmin, ano, mes, carregar])
 
   function exportarPdf() {
     document.body.classList.add('print-relatorio-mensal')
@@ -105,7 +139,7 @@ export default function RelatorioDocumento() {
         <div className="flex flex-wrap gap-2">
           <select
             value={mes}
-            onChange={(e) => setMes(Number(e.target.value))}
+            onChange={(e) => aoMudarMes(Number(e.target.value))}
             className="px-3 py-2 rounded-lg border-2 border-amber-200 bg-white"
           >
             {MESES.map((m) => (
@@ -116,7 +150,7 @@ export default function RelatorioDocumento() {
           </select>
           <select
             value={ano}
-            onChange={(e) => setAno(Number(e.target.value))}
+            onChange={(e) => aoMudarAno(Number(e.target.value))}
             className="px-3 py-2 rounded-lg border-2 border-amber-200 bg-white"
           >
             {anosDisponiveis.map((a) => (
@@ -136,7 +170,7 @@ export default function RelatorioDocumento() {
           <button
             type="button"
             onClick={exportarPdf}
-            disabled={!relatorio || carregando}
+            disabled={!relatorio || carregando || relatorioDesatualizado}
             className="px-4 py-2 rounded-lg bg-stone-800 text-white font-semibold hover:bg-stone-900 disabled:opacity-60"
           >
             Salvar PDF
@@ -150,11 +184,19 @@ export default function RelatorioDocumento() {
         </div>
       )}
 
-      {carregando && !relatorio && (
-        <p className="text-stone-600 py-12 text-center">Gerando documento…</p>
+      {relatorioDesatualizado && (
+        <div className="no-print mb-4 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-sm">
+          Carregando relatório de <strong>{tituloMesSelecionado}</strong>…
+        </div>
       )}
 
-      {relatorio && (
+      {carregando && (
+        <p className="no-print text-stone-600 py-4 text-center">
+          Gerando documento de {tituloMesSelecionado}…
+        </p>
+      )}
+
+      {relatorio && !relatorioDesatualizado && (
         <article className="relatorio-mensal-print bg-white rounded-xl border-2 border-amber-200 shadow-sm p-6 md:p-8 max-w-4xl mx-auto">
           <header className="text-center border-b-2 border-amber-200 pb-6 mb-6">
             <img

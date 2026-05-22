@@ -48,7 +48,11 @@ export async function getRelatoriosCaixa() {
 }
 
 export async function getRelatorioMensalCaixa(ano, mes) {
-  const params = new URLSearchParams({ ano: String(ano), mes: String(mes) })
+  const params = new URLSearchParams({
+    ano: String(ano),
+    mes: String(mes),
+    _: String(Date.now()),
+  })
   return apiRequest(`/caixa/relatorio-mensal?${params}`)
 }
 

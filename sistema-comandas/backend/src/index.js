@@ -1637,6 +1637,7 @@ app.get('/caixa/relatorio-mensal', async (req, res) => {
   try {
     const cacheKey = `GET:/caixa/relatorio-mensal:${ano}-${mes}`
     const payload = await withReadCache(cacheKey, () => montarRelatorioMensalCaixa(ano, mes))
+    res.set('Cache-Control', 'no-store')
     res.json(payload)
   } catch (err) {
     responderErroFirestore(res, err)
