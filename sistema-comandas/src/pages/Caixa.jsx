@@ -57,8 +57,6 @@ export default function Caixa() {
       sangrias,
       caixaAberto,
       caixaAtual,
-      totais,
-      totalSangrias,
       abrirCaixa,
       fecharCaixa,
       registrarSangria,
@@ -106,10 +104,9 @@ export default function Caixa() {
     return () => window.removeEventListener('keydown', handleAtalhoSecretoExcluirDadosCaixa)
   }, [])
 
-  const { totalHoje, vendasHoje } = useMemo(() => {
+  const { vendasHoje } = useMemo(() => {
     const doDia = vendas.filter((v) => isHoje(v.data))
-    const total = doDia.reduce((acc, v) => acc + (v.total || 0), 0)
-    return { totalHoje: total, vendasHoje: doDia }
+    return { vendasHoje: doDia }
   }, [vendas])
 
   const vendasOrdenadas = useMemo(
@@ -189,7 +186,7 @@ export default function Caixa() {
       setMostrarFechamento(false)
       setValorContado('')
       await refresh()
-      toast.show(`Caixa fechado. Diferença: R$ ${r.fechamento.diferenca.toFixed(2)}`)
+      toast.show('Caixa fechado com sucesso!')
       if (r.avisoComandas) {
         toast.show(r.avisoComandas, 'warning')
       }
@@ -442,14 +439,6 @@ export default function Caixa() {
   }
 
   const caixa = caixaAtual || { aberto: false, valorInicial: 0 }
-  const totalVendasDinheiro = Number(totais.totalDinheiro || 0)
-  const totalSangriasCaixa = Number(totais.totalSangrias ?? totalSangrias ?? 0)
-  const dinheiroLiquido = Number(totais.dinheiroLiquido ?? totalVendasDinheiro - totalSangriasCaixa)
-  const totalEsperado = (caixa.valorInicial || 0) + dinheiroLiquido
-  const diferenca =
-    mostrarFechamento && valorContado
-      ? (parseFloat(valorContado.replace(',', '.')) || 0) - totalEsperado
-      : 0
 
   const totalComandaPendente =
     comandaPagamento &&
@@ -471,6 +460,9 @@ export default function Caixa() {
           }`}
         >
           {caixaAberto ? 'Caixa aberto' : 'Caixa fechado'}
+        </span>
+        <span className="px-4 py-2 rounded-xl bg-white border border-amber-200 text-amber-900 font-semibold tabular-nums">
+          {vendasHoje.length} venda{vendasHoje.length === 1 ? '' : 's'} hoje
         </span>
         {!caixaAberto && !mostrarAbertura && (
           <button
@@ -533,15 +525,9 @@ export default function Caixa() {
           className="mb-6 p-6 bg-white rounded-xl border-2 border-amber-200"
         >
           <h3 className="text-lg font-semibold text-amber-900 mb-4">Fechar caixa</h3>
-          <div className="grid gap-3 mb-4">
-            <p>Valor inicial: R$ {(caixa.valorInicial || 0).toFixed(2)}</p>
-            <p>Total dinheiro hoje: R$ {totais.totalDinheiro.toFixed(2)}</p>
-            <p>Total cartão hoje: R$ {totais.totalCartao.toFixed(2)}</p>
-            <p>Total PIX hoje: R$ {totais.totalPix.toFixed(2)}</p>
-            <p className="font-bold">
-              Total esperado em caixa: R$ {totalEsperado.toFixed(2)}
-            </p>
-          </div>
+          <p className="mb-4 text-sm text-stone-600">
+            Informe o valor contado em dinheiro no caixa físico para concluir o fechamento.
+          </p>
           <div className="flex flex-col sm:flex-row gap-4 sm:items-end flex-wrap">
             <div className="w-full sm:w-auto">
               <label className="block text-sm font-medium mb-1">Valor contado (R$)</label>
@@ -554,15 +540,6 @@ export default function Caixa() {
                 className="px-4 py-3 rounded-lg border-2 border-amber-200 w-full sm:w-40"
               />
             </div>
-            {valorContado && (
-              <p
-                className={`font-bold ${
-                  diferenca >= 0 ? 'text-green-700' : 'text-red-700'
-                }`}
-              >
-                Diferença: R$ {diferenca.toFixed(2)}
-              </p>
-            )}
             <button
               type="submit"
               className="w-full sm:w-auto px-4 py-3 rounded-xl bg-amber-600 text-white font-semibold"
@@ -579,61 +556,6 @@ export default function Caixa() {
           </div>
         </form>
       )}
-
-      {/* Totais do dia */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
-          <p className="text-sm font-medium text-stone-500 mb-1">Total vendido hoje</p>
-          <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {totalHoje.toFixed(2)}
-          </p>
-        </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
-          <p className="text-sm font-medium text-stone-500 mb-1">Dinheiro</p>
-          <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {totais.totalDinheiro.toFixed(2)}
-          </p>
-        </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
-          <p className="text-sm font-medium text-stone-500 mb-1">Cartão</p>
-          <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {totais.totalCartao.toFixed(2)}
-          </p>
-        </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
-          <p className="text-sm font-medium text-stone-500 mb-1">PIX</p>
-          <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {totais.totalPix.toFixed(2)}
-          </p>
-        </div>
-      </div>
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
-          <p className="text-sm font-medium text-stone-500 mb-1">Valor inicial do caixa</p>
-          <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {Number(caixa.valorInicial || 0).toFixed(2)}
-          </p>
-        </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
-          <p className="text-sm font-medium text-stone-500 mb-1">Vendas em dinheiro (caixa atual)</p>
-          <p className="text-2xl font-bold text-amber-800 tabular-nums">
-            R$ {totalVendasDinheiro.toFixed(2)}
-          </p>
-        </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
-          <p className="text-sm font-medium text-stone-500 mb-1">Total sangrias</p>
-          <p className="text-2xl font-bold text-red-700 tabular-nums">
-            R$ {totalSangriasCaixa.toFixed(2)}
-          </p>
-        </div>
-        <div className="p-6 rounded-xl bg-white border-2 border-amber-200 shadow-sm">
-          <p className="text-sm font-medium text-stone-500 mb-1">Dinheiro líquido</p>
-          <p className="text-2xl font-bold text-green-700 tabular-nums">
-            R$ {dinheiroLiquido.toFixed(2)}
-          </p>
-        </div>
-      </div>
 
       <div className="mb-8 p-6 bg-white rounded-xl border-2 border-amber-200 shadow-sm">
         <h3 className="text-lg font-semibold text-amber-900 mb-4">Sangria de Caixa</h3>
@@ -684,9 +606,7 @@ export default function Caixa() {
                 className="p-3 rounded-lg border border-amber-200 bg-amber-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
               >
                 <div>
-                  <p className="font-semibold text-amber-900">
-                    R$ {Number(sangria.valor || 0).toFixed(2)}
-                  </p>
+                  <p className="font-semibold text-amber-900">Sangria registrada</p>
                   <p className="text-sm text-stone-600">
                     {sangria.motivo || 'Sem motivo informado'}
                   </p>
@@ -714,13 +634,6 @@ export default function Caixa() {
           </div>
         ) : (
           comandasPendentes.map((comanda) => {
-            const total =
-              comanda.total ??
-              (comanda.itens || []).reduce(
-                (acc, item) =>
-                  acc + (item.subtotal ?? item.preco * item.quantidade),
-                0
-              )
             return (
               <div
                 key={comanda.id}
@@ -749,9 +662,6 @@ export default function Caixa() {
                   )}
                 </div>
                 <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                  <p className="text-xl font-bold text-amber-800 tabular-nums">
-                    R$ {total.toFixed(2)}
-                  </p>
                   <button
                     type="button"
                     onClick={() => {
@@ -793,6 +703,7 @@ export default function Caixa() {
                           <ItemRow
                             key={item.id}
                             item={item}
+                            ocultarValores
                             onQuantidadeChange={handleAlterarQuantidadeComanda}
                             onRemover={handleRemoverItemComanda}
                           />
@@ -816,7 +727,9 @@ export default function Caixa() {
                             {p.nome}{' '}
                             {p.fixo === true
                               ? '(valor no caixa)'
-                              : `- R$ ${p.preco?.toFixed(2)} ${Number(p.estoque ?? 0) < 1 ? '(sem estoque)' : ''}`}
+                              : Number(p.estoque ?? 0) < 1
+                                ? '(sem estoque)'
+                                : ''}
                           </option>
                         ))}
                       </select>
@@ -930,18 +843,8 @@ export default function Caixa() {
                   {venda.metodoPagamento && (
                     <p className="text-sm text-amber-700 mt-1">{venda.metodoPagamento}</p>
                   )}
-                  {venda.metodoPagamento?.toLowerCase().includes('dinheiro') &&
-                    (venda.valorRecebido != null || venda.troco != null) && (
-                      <p className="text-sm text-stone-600 mt-1">
-                        Recebido: R$ {(venda.valorRecebido || 0).toFixed(2)} | Troco: R${' '}
-                        {(venda.troco || 0).toFixed(2)}
-                      </p>
-                    )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <p className="text-xl font-bold text-amber-800 tabular-nums">
-                    R$ {(venda.total || 0).toFixed(2)}
-                  </p>
                   <button
                     type="button"
                     onClick={() => handleCancelarVenda(venda.id)}
@@ -961,14 +864,8 @@ export default function Caixa() {
               {venda.itens && venda.itens.length > 0 && (
                 <ul className="space-y-1 text-sm text-stone-600 border-t border-amber-100 pt-4">
                   {venda.itens.map((item) => (
-                    <li key={item.id} className="flex justify-between gap-2">
-                      <span>
-                        {formatarQuantidadeItem(item)} {item.nome}
-                      </span>
-                      <span className="tabular-nums">
-                        R${' '}
-                        {(item.subtotal ?? item.preco * item.quantidade).toFixed(2)}
-                      </span>
+                    <li key={item.id}>
+                      {formatarQuantidadeItem(item)} {item.nome}
                     </li>
                   ))}
                 </ul>
@@ -989,7 +886,9 @@ export default function Caixa() {
                           {p.nome}{' '}
                           {p.fixo === true
                             ? '(valor no caixa)'
-                            : `- R$ ${p.preco?.toFixed(2)} ${Number(p.estoque ?? 0) < 1 ? '(sem estoque)' : ''}`}
+                            : Number(p.estoque ?? 0) < 1
+                              ? '(sem estoque)'
+                              : ''}
                         </option>
                       ))}
                     </select>

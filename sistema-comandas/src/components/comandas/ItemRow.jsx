@@ -1,4 +1,4 @@
-export default function ItemRow({ item, onQuantidadeChange, onRemover }) {
+export default function ItemRow({ item, onQuantidadeChange, onRemover, ocultarValores = false }) {
   const preco = Number(item?.preco ?? 0)
   const subtotal = Number(item?.subtotal ?? preco * (item?.quantidade ?? 1))
   const itemPorPeso = item?.unidadeMedida === 'gramas'
@@ -8,13 +8,15 @@ export default function ItemRow({ item, onQuantidadeChange, onRemover }) {
     <div className="flex items-center gap-4 py-3 px-4 bg-white rounded-lg border border-amber-200/60 hover:border-amber-300 transition-colors">
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-amber-900 truncate">{item?.nome ?? 'Item'}</p>
-        <p className="text-sm text-stone-500">
-          {itemValorTotal
-            ? `Valor total informado: R$ ${preco.toFixed(2)}`
-            : itemPorPeso
-              ? `R$ ${preco.toFixed(2)} / 100 g`
-              : `R$ ${preco.toFixed(2)} cada`}
-        </p>
+        {!ocultarValores && (
+          <p className="text-sm text-stone-500">
+            {itemValorTotal
+              ? `Valor total informado: R$ ${preco.toFixed(2)}`
+              : itemPorPeso
+                ? `R$ ${preco.toFixed(2)} / 100 g`
+                : `R$ ${preco.toFixed(2)} cada`}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {itemPorPeso ? (
@@ -50,9 +52,11 @@ export default function ItemRow({ item, onQuantidadeChange, onRemover }) {
           </>
         )}
       </div>
-      <p className="w-24 text-right font-bold text-amber-900 tabular-nums">
-        R$ {subtotal.toFixed(2)}
-      </p>
+      {!ocultarValores && (
+        <p className="w-24 text-right font-bold text-amber-900 tabular-nums">
+          R$ {subtotal.toFixed(2)}
+        </p>
+      )}
       <button
         type="button"
         onClick={() => onRemover(item.id)}
