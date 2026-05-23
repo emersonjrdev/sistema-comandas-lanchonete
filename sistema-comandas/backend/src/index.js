@@ -620,126 +620,6 @@ async function listarVendasParaTotaisCaixa(caixaAtual) {
   return listarVendasDesde(isoInicioCalendarioSp())
 }
 
-function intervaloMesRelatorio(ano, mes) {
-  const mesNum = Number(mes)
-  const pad = (n) => String(n).padStart(2, '0')
-  const ultimoDia = new Date(ano, mesNum, 0).getDate()
-  const desde = new Date(`${ano}-${pad(mesNum)}-01T00:00:00-03:00`).toISOString()
-  const ate = new Date(`${ano}-${pad(mesNum)}-${pad(ultimoDia)}T23:59:59.999-03:00`).toISOString()
-  const label = new Date(`${ano}-${pad(mesNum)}-15T12:00:00-03:00`).toLocaleDateString('pt-BR', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'America/Sao_Paulo',
-  })
-  return { desde, ate, label }
-}
-
-function formatarDiaRelatorioSp(iso) {
-  if (!iso) return '-'
-  return new Date(iso).toLocaleDateString('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
-}
-
-function formatarHoraRelatorioSp(iso) {
-  if (!iso) return '-'
-  return new Date(iso).toLocaleTimeString('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function agruparVendasPorDiaRelatorio(vendas = []) {
-  const map = new Map()
-  for (const v of vendas) {
-    const dia = formatarDiaRelatorioSp(v.data)
-    if (!map.has(dia)) map.set(dia, [])
-    map.get(dia).push({
-      id: v.id,
-      hora: formatarHoraRelatorioSp(v.data),
-      dataIso: v.data,
-      identificacao: v.identificacao || '-',
-      metodoPagamento: v.metodoPagamento || '-',
-      total: Number(v.total || 0),
-      cancelada: v.cancelada === true,
-    })
-  }
-
-  return [...map.entries()]
-    .map(([data, lista]) => {
-      const vendasDia = lista.sort((a, b) => new Date(a.dataIso) - new Date(b.dataIso))
-      const totais = somarTotais(
-        vendasDia.map((item) => ({
-          metodoPagamento: item.metodoPagamento,
-          total: item.total,
-          cancelada: item.cancelada,
-        }))
-      )
-      return {
-        data,
-        vendas: vendasDia,
-        totais: {
-          totalGeral: totais.totalHoje,
-          totalDinheiro: totais.totalDinheiro,
-          totalCartao: totais.totalCartao,
-          totalPix: totais.totalPix,
-          qtdVendas: vendasDia.filter((v) => !v.cancelada).length,
-          qtdCanceladas: vendasDia.filter((v) => v.cancelada).length,
-        },
-      }
-    })
-    .sort((a, b) => {
-      const [da, ma, ya] = a.data.split('/').map(Number)
-      const [db, mb, yb] = b.data.split('/').map(Number)
-      return new Date(yb, mb - 1, db) - new Date(ya, ma - 1, da)
-    })
-}
-
-async function montarRelatorioMensalCaixa(ano, mes) {
-  const { desde, ate, label } = intervaloMesRelatorio(ano, mes)
-  const [vendasSnap, fechamentosSnap] = await Promise.all([
-    vendasCol.where('data', '>=', desde).where('data', '<=', ate).orderBy('data', 'asc').get(),
-    fechamentosCol.where('data', '>=', desde).where('data', '<=', ate).orderBy('data', 'asc').get(),
-  ])
-
-  const vendas = vendasSnap.docs.map((doc) => docToEntity(doc))
-  const fechamentos = fechamentosSnap.docs.map((doc) => docToEntity(doc))
-  const dias = agruparVendasPorDiaRelatorio(vendas)
-  const totaisMes = somarTotais(vendas)
-
-  return {
-    periodo: { ano, mes, label, desde, ate },
-    totais: {
-      totalGeral: totaisMes.totalHoje,
-      totalDinheiro: totaisMes.totalDinheiro,
-      totalCartao: totaisMes.totalCartao,
-      totalPix: totaisMes.totalPix,
-      qtdVendas: vendas.filter((v) => v?.cancelada !== true).length,
-      qtdCanceladas: vendas.filter((v) => v?.cancelada === true).length,
-      diasComVenda: dias.filter((d) => d.totais.qtdVendas > 0).length,
-    },
-    fechamentos: fechamentos.map((f) => ({
-      id: f.id,
-      data: f.data,
-      dataFormatada: formatarDiaRelatorioSp(f.data) + ' ' + formatarHoraRelatorioSp(f.data),
-      valorInicial: Number(f.valorInicial || 0),
-      totalDinheiro: Number(f.totalDinheiro || 0),
-      totalCartao: Number(f.totalCartao || 0),
-      totalPix: Number(f.totalPix || 0),
-      totalSangrias: Number(f.totalSangrias || 0),
-      dinheiroLiquido: Number(f.dinheiroLiquido || 0),
-      valorContado: Number(f.valorContado || 0),
-      diferenca: Number(f.diferenca || 0),
-    })),
-    dias,
-    geradoEm: new Date().toISOString(),
-  }
-}
-
 function erroFirestoreQuota(err) {
   const code = err?.code
   const msg = String(err?.message || err?.details || '')
@@ -1620,29 +1500,9 @@ app.post('/caixa/fechar', async (req, res) => {
   })
 })
 
-app.get('/caixa/relatorios', async (_, res) => {
+app.get('/caixa/relatorios', exigirSessaoFinanceiro, async (_, res) => {
   const snap = await fechamentosCol.orderBy('data', 'desc').get()
   res.json(snap.docs.map((doc) => docToEntity(doc)))
-})
-
-app.get('/caixa/relatorio-mensal', async (req, res) => {
-  const ano = Number(req.query.ano)
-  const mes = Number(req.query.mes)
-  if (!Number.isInteger(ano) || ano < 2020 || ano > 2100) {
-    return res.status(400).json({ error: 'Parâmetro ano inválido' })
-  }
-  if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
-    return res.status(400).json({ error: 'Parâmetro mes inválido (1-12)' })
-  }
-
-  try {
-    const cacheKey = `GET:/caixa/relatorio-mensal:${ano}-${mes}`
-    const payload = await withReadCache(cacheKey, () => montarRelatorioMensalCaixa(ano, mes))
-    res.set('Cache-Control', 'no-store')
-    res.json(payload)
-  } catch (err) {
-    responderErroFirestore(res, err)
-  }
 })
 
 app.get('/caixa/sangrias', async (req, res) => {
@@ -1755,7 +1615,7 @@ app.post('/caixa/sangrias', async (req, res) => {
   }
 })
 
-app.delete('/caixa/dados', async (_, res) => {
+app.delete('/caixa/dados', exigirSessaoFinanceiro, async (_, res) => {
   try {
     await apagarColecao(vendasCol)
     await apagarColecao(fechamentosCol)
@@ -1870,9 +1730,6 @@ app.get('/dashboard/resumo', async (_, res) => {
   const comandasAguardandoSnap = await comandasCol.where('status', '==', 'aguardando_pagamento').get()
   const caixaAtual = await virarCaixaAutomaticamenteSeNecessario()
   const vendasHoje = await listarVendasParaTotaisCaixa(caixaAtual)
-  const totaisHoje = somarTotais(vendasHoje)
-  const totalSangrias = caixaAtual.caixaId ? await getTotalSangriasDoCaixa(caixaAtual.caixaId) : 0
-  const dinheiroLiquido = Number(totaisHoje.totalDinheiro || 0) - Number(totalSangrias || 0)
 
   const produtosEstoqueBaixo = produtosSnap.docs
     .map((doc) => docToEntity(doc))
@@ -1881,17 +1738,9 @@ app.get('/dashboard/resumo', async (_, res) => {
   const estoqueBaixo = produtosEstoqueBaixo.length
 
   return {
-    totalHoje: totaisHoje.totalHoje,
-    totalDinheiro: totaisHoje.totalDinheiro,
-    totalCartao: totaisHoje.totalCartao,
-    totalPix: totaisHoje.totalPix,
-    totalSangrias,
-    dinheiroLiquido,
     comandasAbertas: comandasAbertasSnap.size,
     comandasAguardandoPagamento: comandasAguardandoSnap.size,
     vendasFinalizadasHoje: vendasHoje.length,
-    totalHistorico: 0,
-    totalVendas: vendasHoje.length,
     caixaAberto: caixaAtual.aberto,
     estoqueBaixo,
     produtosEstoqueBaixo: produtosEstoqueBaixo.map((p) => ({
@@ -1899,6 +1748,16 @@ app.get('/dashboard/resumo', async (_, res) => {
       nome: p.nome,
       estoque: Number(p.estoque || 0),
     })),
+    vendasAmostra: vendasHoje
+      .filter((v) => v?.cancelada !== true)
+      .sort((a, b) => new Date(b.data) - new Date(a.data))
+      .slice(0, 15)
+      .map((v) => ({
+        id: v.id,
+        identificacao: v.identificacao || '-',
+        metodoPagamento: v.metodoPagamento || '-',
+        data: v.data,
+      })),
   }
   })
   res.json(payload)

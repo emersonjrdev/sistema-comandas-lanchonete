@@ -1,9 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useRelatorios } from '../hooks/useRelatorios'
 import { useToast } from '../contexts/ToastContext'
 import { limparDadosCaixa } from '../services/caixaService'
+import {
+  limparSessaoFinanceiro,
+  sessaoFinanceiroValida,
+  solicitarSessaoFinanceiro,
+} from '../services/financeiroAccess'
 import { playSomErro, playSomVenda } from '../utils/sons'
 
 function formatarData(dataStr) {
@@ -20,10 +25,26 @@ function formatarData(dataStr) {
 
 export default function RelatorioCaixa() {
   const { isAdmin } = useAuth()
-  const [relatorios, , refresh] = useRelatorios()
   const toast = useToast()
+  const [sessaoOk, setSessaoOk] = useState(() => sessaoFinanceiroValida())
+  const [senhaFinanceiro, setSenhaFinanceiro] = useState('')
+  const [enviandoSenha, setEnviandoSenha] = useState(false)
+  const [relatorios, , refresh] = useRelatorios({ habilitado: sessaoOk && sessaoFinanceiroValida() })
 
-  if (!isAdmin) return <Navigate to="/" replace />
+  useEffect(() => {
+    function handleAtalhoSecretoRelatorio(event) {
+      if (!sessaoOk || !sessaoFinanceiroValida()) return
+      if (event.ctrlKey && event.shiftKey && event.altKey && event.key === 'Backspace') {
+        event.preventDefault()
+        handleLimparDadosEscondido()
+      }
+    }
+
+    window.addEventListener('keydown', handleAtalhoSecretoRelatorio)
+    return () => window.removeEventListener('keydown', handleAtalhoSecretoRelatorio)
+  }, [sessaoOk])
+
+  if (!isAdmin) return <Navigate to="/comandas" replace />
 
   async function handleLimparDadosEscondido() {
     const confirmou = window.confirm(
@@ -47,27 +68,84 @@ export default function RelatorioCaixa() {
     }
   }
 
-  useEffect(() => {
-    function handleAtalhoSecretoRelatorio(event) {
-      // Atalho secreto no Relatorio: Ctrl + Shift + Alt + Backspace
-      if (event.ctrlKey && event.shiftKey && event.altKey && event.key === 'Backspace') {
-        event.preventDefault()
-        handleLimparDadosEscondido()
-      }
+  async function handleDesbloquear(e) {
+    e.preventDefault()
+    if (!senhaFinanceiro.trim() || enviandoSenha) return
+    setEnviandoSenha(true)
+    try {
+      await solicitarSessaoFinanceiro(senhaFinanceiro)
+      setSenhaFinanceiro('')
+      setSessaoOk(true)
+      toast.show('Relatório de caixa autorizado.')
+    } catch (err) {
+      toast.show(String(err?.message || 'Senha incorreta.'), 'error')
+    } finally {
+      setEnviandoSenha(false)
     }
+  }
 
-    window.addEventListener('keydown', handleAtalhoSecretoRelatorio)
-    return () => window.removeEventListener('keydown', handleAtalhoSecretoRelatorio)
-  }, [])
+  function handleEncerrarAcesso() {
+    limparSessaoFinanceiro()
+    setSessaoOk(false)
+    toast.show('Sessão do relatório encerrada neste dispositivo.')
+  }
+
+  if (!sessaoOk || !sessaoFinanceiroValida()) {
+    return (
+      <div className="mx-auto max-w-md space-y-4">
+        <h2 className="text-2xl font-bold text-amber-900">Relatório de Caixa — acesso restrito</h2>
+        <div className="rounded-xl border-2 border-amber-300 bg-white p-5 shadow-sm">
+          <p className="text-sm leading-relaxed text-stone-700">
+            Só quem souber a <span className="font-semibold">senha exclusiva da Maria</span> vê o histórico de
+            fechamentos aqui neste navegador.
+          </p>
+          <form className="mt-4 space-y-3" onSubmit={handleDesbloquear}>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
+              Senha Maria
+              <input
+                type="password"
+                autoComplete="off"
+                value={senhaFinanceiro}
+                onChange={(e) => setSenhaFinanceiro(e.target.value)}
+                placeholder="Informe a senha"
+                className="mt-1 w-full rounded-lg border border-amber-200 px-3 py-2 text-sm text-amber-950 outline-none focus:border-amber-500"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={enviandoSenha}
+              className="w-full rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-800 disabled:opacity-60"
+            >
+              {enviandoSenha ? 'Verificando…' : 'Entrar no Relatório'}
+            </button>
+          </form>
+        </div>
+        <p className="text-center text-[11px] text-stone-500">
+          A mesma senha do Financeiro — configure FINANCEIRO_MARIA_SENHA no servidor.
+        </p>
+      </div>
+    )
+  }
 
   const ordenados = [...relatorios].sort((a, b) => new Date(b.data) - new Date(a.data))
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-amber-900 mb-6">Relatório de Caixa</h2>
-      <p className="text-stone-600 mb-6">
-        Histórico de fechamentos de caixa com totais por método de pagamento.
-      </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-amber-900">Relatório de Caixa</h2>
+          <p className="mt-1 text-stone-600">
+            Histórico de fechamentos de caixa com totais por método de pagamento.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleEncerrarAcesso}
+          className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-50"
+        >
+          Encerrar acesso
+        </button>
+      </div>
 
       {ordenados.length === 0 ? (
         <div className="py-16 text-center bg-white rounded-xl border-2 border-dashed border-amber-200">
@@ -81,9 +159,7 @@ export default function RelatorioCaixa() {
               className="bg-white rounded-xl border-2 border-amber-200 p-4 md:p-6 shadow-sm"
             >
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-                <h3 className="text-lg font-bold text-amber-900">
-                  {formatarData(r.data)}
-                </h3>
+                <h3 className="text-lg font-bold text-amber-900">{formatarData(r.data)}</h3>
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-semibold ${
                     r.diferenca === 0

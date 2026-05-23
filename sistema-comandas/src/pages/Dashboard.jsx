@@ -1,45 +1,26 @@
 import { useDashboard } from '../hooks/usePDV'
-import { formatarMoedaBRL } from '../utils/moeda'
 
 const cardCls =
   'rounded-lg border border-amber-200 bg-white px-3 py-2 shadow-sm md:px-3.5 md:py-2.5'
 const labelCls = 'text-[11px] font-medium uppercase tracking-wide text-stone-500'
 const valueCls = 'mt-0.5 text-lg font-bold tabular-nums leading-tight text-amber-800'
 
+function formatarHora(dataStr) {
+  if (!dataStr) return '-'
+  return new Date(dataStr).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export default function Dashboard() {
   const [resumo] = useDashboard()
   const produtosBaixo = resumo.produtosEstoqueBaixo || []
+  const vendasAmostra = resumo.vendasAmostra || []
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-amber-900">Dashboard</h2>
-
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <div className={cardCls}>
-          <p className={labelCls}>Total vendido hoje</p>
-          <p className={valueCls}>{formatarMoedaBRL(resumo.totalHoje)}</p>
-        </div>
-        <div className={cardCls}>
-          <p className={labelCls}>Dinheiro hoje</p>
-          <p className={valueCls}>{formatarMoedaBRL(resumo.totalDinheiro ?? 0)}</p>
-        </div>
-        <div className={cardCls}>
-          <p className={labelCls}>Cartão hoje</p>
-          <p className={valueCls}>{formatarMoedaBRL(resumo.totalCartao ?? 0)}</p>
-        </div>
-        <div className={cardCls}>
-          <p className={labelCls}>PIX hoje</p>
-          <p className={valueCls}>{formatarMoedaBRL(resumo.totalPix ?? 0)}</p>
-        </div>
-        <div className={cardCls}>
-          <p className={labelCls}>Sangrias</p>
-          <p className={`${valueCls} text-red-700`}>{formatarMoedaBRL(resumo.totalSangrias ?? 0)}</p>
-        </div>
-        <div className={cardCls}>
-          <p className={labelCls}>Dinheiro líquido</p>
-          <p className={`${valueCls} text-green-700`}>{formatarMoedaBRL(resumo.dinheiroLiquido ?? 0)}</p>
-        </div>
-      </div>
 
       <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <div className={cardCls}>
@@ -65,6 +46,43 @@ export default function Dashboard() {
           </p>
         </div>
       </div>
+
+      <section className={cardCls} aria-labelledby="dash-vendas-amostra">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 border-b border-amber-100 pb-2">
+          <div>
+            <h3 id="dash-vendas-amostra" className="text-sm font-semibold text-stone-800">
+              Vendas de hoje — amostra
+            </h3>
+            <p className="mt-0.5 text-[11px] text-stone-500">
+              Últimas vendas do período atual do caixa, sem valores em reais.
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-stone-700">
+            {resumo.vendasFinalizadasHoje ?? 0} venda{(resumo.vendasFinalizadasHoje ?? 0) === 1 ? '' : 's'}
+          </span>
+        </div>
+
+        {vendasAmostra.length === 0 ? (
+          <p className="text-xs text-stone-500">Nenhuma venda registrada no período atual.</p>
+        ) : (
+          <ul className="max-h-[min(18rem,calc(100vh-380px))] space-y-1 overflow-y-auto text-xs text-stone-700">
+            {vendasAmostra.map((venda) => (
+              <li
+                key={venda.id}
+                className="flex flex-col gap-0.5 rounded-md border border-transparent px-1.5 py-1.5 hover:border-amber-200/70 hover:bg-amber-50/60 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="min-w-0 font-medium text-stone-800">{venda.identificacao}</span>
+                <span className="shrink-0 text-stone-500">
+                  {formatarHora(venda.data)}
+                  {venda.metodoPagamento && venda.metodoPagamento !== '-'
+                    ? ` · ${venda.metodoPagamento}`
+                    : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className={`${cardCls} lg:py-3`} aria-labelledby="dash-estoque-baixo">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 border-b border-amber-100 pb-2">

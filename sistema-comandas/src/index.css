@@ -22,28 +22,3 @@ body {
   opacity: 0;
   pointer-events: none;
 }
-
-@media print {
-  body.print-relatorio-mensal aside,
-  body.print-relatorio-mensal header,
-  body.print-relatorio-mensal .no-print {
-    display: none !important;
-  }
-
-  body.print-relatorio-mensal main {
-    overflow: visible !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
-
-  body.print-relatorio-mensal .relatorio-mensal-print {
-    box-shadow: none !important;
-    border: none !important;
-    max-width: 100% !important;
-  }
-
-  body.print-relatorio-mensal .dia-bloco {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-}

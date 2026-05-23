@@ -62,17 +62,13 @@ export function useComandas() {
 
 export function useDashboard() {
   const [resumo, setResumo] = useState({
-    totalHoje: 0,
-    totalDinheiro: 0,
-    totalCartao: 0,
-    totalPix: 0,
-    totalSangrias: 0,
-    dinheiroLiquido: 0,
     comandasAbertas: 0,
+    comandasAguardandoPagamento: 0,
     vendasFinalizadasHoje: 0,
-    totalHistorico: 0,
-    totalVendas: 0,
+    caixaAberto: false,
+    estoqueBaixo: 0,
     produtosEstoqueBaixo: [],
+    vendasAmostra: [],
   })
 
   const refresh = useCallback(async () => {
@@ -83,17 +79,13 @@ export function useDashboard() {
   useEffect(() => {
     refresh().catch(() => {
       setResumo({
-        totalHoje: 0,
-        totalDinheiro: 0,
-        totalCartao: 0,
-        totalPix: 0,
-        totalSangrias: 0,
-        dinheiroLiquido: 0,
         comandasAbertas: 0,
+        comandasAguardandoPagamento: 0,
         vendasFinalizadasHoje: 0,
-        totalHistorico: 0,
-        totalVendas: 0,
+        caixaAberto: false,
+        estoqueBaixo: 0,
         produtosEstoqueBaixo: [],
+        vendasAmostra: [],
       })
     })
   }, [refresh])

@@ -1,4 +1,11 @@
 import { apiRequest } from './api'
+import { obterCabecalhoFinanceiroOuNull } from './financeiroAccess'
+
+function cabecalhoFinanceiroObrigatorio() {
+  const headers = obterCabecalhoFinanceiroOuNull()
+  if (!headers) throw new Error('Relatório de caixa não desbloqueado neste dispositivo.')
+  return headers
+}
 
 function emitUpdate() {
   window.dispatchEvent(new CustomEvent('pdv:storage-update'))
@@ -44,21 +51,15 @@ export async function getTotaisHoje() {
 }
 
 export async function getRelatoriosCaixa() {
-  return apiRequest('/caixa/relatorios')
-}
-
-export async function getRelatorioMensalCaixa(ano, mes) {
-  const params = new URLSearchParams({
-    ano: String(ano),
-    mes: String(mes),
-    _: String(Date.now()),
-  })
-  return apiRequest(`/caixa/relatorio-mensal?${params}`)
+  return apiRequest('/caixa/relatorios', { headers: cabecalhoFinanceiroObrigatorio() })
 }
 
 export async function limparDadosCaixa() {
   try {
-    const result = await apiRequest('/caixa/dados', { method: 'DELETE' })
+    const result = await apiRequest('/caixa/dados', {
+      method: 'DELETE',
+      headers: cabecalhoFinanceiroObrigatorio(),
+    })
     emitUpdate()
     return result
   } catch (error) {

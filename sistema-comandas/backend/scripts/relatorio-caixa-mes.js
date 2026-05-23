@@ -94,7 +94,8 @@ function intervaloMesIso(ano, mes) {
 }
 
 function nomeMes(ano, mes) {
-  return new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', {
+  const pad = (n) => String(n).padStart(2, '0')
+  return new Date(`${ano}-${pad(mes)}-15T12:00:00-03:00`).toLocaleDateString('pt-BR', {
     month: 'long',
     year: 'numeric',
     timeZone: TZ,
