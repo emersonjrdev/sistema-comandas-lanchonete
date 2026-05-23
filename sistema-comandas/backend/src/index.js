@@ -647,6 +647,23 @@ async function withReadCache(cacheKey, loader) {
   return data
 }
 
+function invalidateReadCache(...keys) {
+  for (const key of keys) readCache.delete(key)
+}
+
+function invalidateComandasCache() {
+  invalidateReadCache(
+    'GET:/comandas:abertas',
+    'GET:/comandas:aguardando',
+    'GET:/dashboard/resumo',
+    'GET:/caixa/totais-hoje'
+  )
+}
+
+function invalidateProdutosCache() {
+  invalidateReadCache('GET:/produtos', 'GET:/dashboard/resumo')
+}
+
 async function seedProdutosFixos() {
   const paoSnap = await produtosCol.where('nome', '==', 'Pão').limit(1).get()
   const paoNovoSnap = await produtosCol.where('nome', '==', 'Pão Francês').limit(1).get()
@@ -853,28 +870,26 @@ app.post('/usuarios', async (req, res) => {
 
 app.get('/produtos', async (_, res) => {
   try {
-    const rows = await withReadCache('GET:/produtos', async () => {
-      const snap = await produtosCol.get()
-      return snap.docs
-        .map((doc) => docToEntity(doc))
-        .sort((a, b) => {
-          const aFixo = a.fixo === true
-          const bFixo = b.fixo === true
-          if (aFixo !== bFixo) return aFixo ? -1 : 1
+    const snap = await produtosCol.get()
+    const rows = snap.docs
+      .map((doc) => docToEntity(doc))
+      .sort((a, b) => {
+        const aFixo = a.fixo === true
+        const bFixo = b.fixo === true
+        if (aFixo !== bFixo) return aFixo ? -1 : 1
 
-          if (aFixo && bFixo) {
-            const idxA = PRODUTOS_FIXOS.findIndex(
-              (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(a.nome)
-            )
-            const idxB = PRODUTOS_FIXOS.findIndex(
-              (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(b.nome)
-            )
-            if (idxA !== idxB) return idxA - idxB
-          }
+        if (aFixo && bFixo) {
+          const idxA = PRODUTOS_FIXOS.findIndex(
+            (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(a.nome)
+          )
+          const idxB = PRODUTOS_FIXOS.findIndex(
+            (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(b.nome)
+          )
+          if (idxA !== idxB) return idxA - idxB
+        }
 
-          return new Date(b.created_at || 0) - new Date(a.created_at || 0)
-        })
-    })
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      })
     res.json(rows)
   } catch (err) {
     responderErroFirestore(res, err)
@@ -900,6 +915,7 @@ app.post('/produtos', async (req, res) => {
   }
   const ref = await produtosCol.add(novo)
   const novoDoc = await ref.get()
+  invalidateProdutosCache()
   res.status(201).json(docToEntity(novoDoc))
 })
 
@@ -938,6 +954,7 @@ app.put('/produtos/:id', async (req, res) => {
   await ref.update(payloadUpdate)
 
   const atualizado = await ref.get()
+  invalidateProdutosCache()
   res.json(docToEntity(atualizado))
 })
 
@@ -971,6 +988,7 @@ app.patch('/produtos/:id/estoque', async (req, res) => {
   })
 
   const atualizado = await ref.get()
+  invalidateProdutosCache()
   res.json(docToEntity(atualizado))
 })
 
@@ -1003,6 +1021,7 @@ app.patch('/estoque/limpar-nao-fixos', async (req, res) => {
     }
     await lote.commit()
 
+    invalidateProdutosCache()
     return res.json({ sucesso: true, atualizados: snap.size })
   } catch (error) {
     return res.status(500).json({ sucesso: false, error: error.message || 'Falha ao limpar estoque' })
@@ -1019,20 +1038,19 @@ app.delete('/produtos/:id', async (req, res) => {
     return res.status(400).json({ error: 'Produto fixo não pode ser excluído' })
   }
   await ref.delete()
+  invalidateProdutosCache()
   res.status(204).send()
 })
 
 app.get('/comandas', async (_, res) => {
   try {
-    const payload = await withReadCache('GET:/comandas:abertas', async () => {
-      const snap = await comandasCol.where('status', '==', 'aberta').get()
-      return snap.docs
-        .map((doc) => {
-          const comanda = docToEntity(doc)
-          return { ...comanda, itens: comanda.itens || [], total: Number(comanda.total || 0) }
-        })
-        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-    })
+    const snap = await comandasCol.where('status', '==', 'aberta').get()
+    const payload = snap.docs
+      .map((doc) => {
+        const comanda = docToEntity(doc)
+        return { ...comanda, itens: comanda.itens || [], total: Number(comanda.total || 0) }
+      })
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
     res.json(payload)
   } catch (err) {
     responderErroFirestore(res, err)
@@ -1041,15 +1059,13 @@ app.get('/comandas', async (_, res) => {
 
 app.get('/comandas/aguardando-pagamento', async (_, res) => {
   try {
-    const payload = await withReadCache('GET:/comandas:aguardando', async () => {
-      const snap = await comandasCol.where('status', '==', 'aguardando_pagamento').get()
-      return snap.docs
-        .map((doc) => {
-          const comanda = docToEntity(doc)
-          return { ...comanda, itens: comanda.itens || [], total: Number(comanda.total || 0) }
-        })
-        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-    })
+    const snap = await comandasCol.where('status', '==', 'aguardando_pagamento').get()
+    const payload = snap.docs
+      .map((doc) => {
+        const comanda = docToEntity(doc)
+        return { ...comanda, itens: comanda.itens || [], total: Number(comanda.total || 0) }
+      })
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
     res.json(payload)
   } catch (err) {
     responderErroFirestore(res, err)
@@ -1084,6 +1100,7 @@ app.delete('/comandas/abertas', async (req, res) => {
     }
     await lote.commit()
 
+    invalidateComandasCache()
     return res.json({ sucesso: true, removidas: snap.size })
   } catch (error) {
     return res.status(500).json({ sucesso: false, error: error.message || 'Falha ao excluir comandas abertas' })
@@ -1146,6 +1163,7 @@ app.post('/comandas', async (req, res) => {
       criada = { id: comandaRef.id, ...nova }
     })
 
+    invalidateComandasCache()
     return res.status(201).json(criada)
   } catch (error) {
     if (String(error?.message || '').includes('já está em uso')) {
@@ -1192,6 +1210,7 @@ app.post('/comandas/:id/itens', async (req, res) => {
   })
 
   const atualizadaDoc = await comandaRef.get()
+  invalidateComandasCache()
   return res.json(docToEntity(atualizadaDoc))
 })
 
@@ -1235,6 +1254,7 @@ app.patch('/comandas/:id/itens/:itemId', async (req, res) => {
   })
 
   const atualizado = await comandaRef.get()
+  invalidateComandasCache()
   res.json(docToEntity(atualizado))
 })
 
@@ -1253,6 +1273,7 @@ app.delete('/comandas/:id/itens/:itemId', async (req, res) => {
   })
 
   const atualizado = await comandaRef.get()
+  invalidateComandasCache()
   res.json(docToEntity(atualizado))
 })
 
@@ -1271,6 +1292,7 @@ app.post('/comandas/:id/enviar-caixa', async (req, res) => {
   })
 
   const atualizada = await comandaRef.get()
+  invalidateComandasCache()
   res.json(docToEntity(atualizada))
 })
 
@@ -1340,6 +1362,8 @@ app.post('/comandas/:id/confirmar-pagamento', async (req, res) => {
   await liberarComandaAtivaPorNumero(comanda.numero_comanda)
 
   const vendaDoc = await vendaRef.get()
+  invalidateComandasCache()
+  invalidateProdutosCache()
   res.json(docToEntity(vendaDoc))
 })
 

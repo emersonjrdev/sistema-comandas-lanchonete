@@ -194,7 +194,7 @@ export default function ComandaDetalhe({
       <div className="bg-white rounded-xl border-2 border-amber-200 p-6 shadow-sm">
         <div className={`mb-4 ${isMobile ? 'space-y-3' : 'flex items-center justify-between'}`}>
           <h3 className="text-lg font-semibold text-amber-900">Itens</h3>
-          {produtos.length > 0 && (
+          {produtos.length > 0 ? (
             <button
               type="button"
               onClick={() => setMostrarAdicionar(!mostrarAdicionar)}
@@ -204,6 +204,8 @@ export default function ComandaDetalhe({
             >
               {mostrarAdicionar ? 'Fechar adição de produto' : '+ Adicionar produto'}
             </button>
+          ) : (
+            <p className="text-sm text-stone-500">Carregando produtos ou nenhum cadastrado.</p>
           )}
         </div>
 
@@ -225,7 +227,7 @@ export default function ComandaDetalhe({
                 placeholder="Digite o nome do produto..."
                 className="w-full px-4 py-3 rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none text-amber-900"
               />
-              {produtosFiltrados.length > 0 && !produtoSelecionado && (buscaProduto.length > 0 || produtosFiltrados.length <= 10) && (
+              {produtosFiltrados.length > 0 && !produtoSelecionado && (
                 <div className="mt-1 max-h-48 overflow-y-auto rounded-lg border-2 border-amber-200 bg-white shadow-sm">
                   {produtosFiltrados.map((p) => {
                     const disponivel = p.fixo === true || estoqueDisponivel(p.id) >= 1

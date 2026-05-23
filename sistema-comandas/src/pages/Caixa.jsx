@@ -48,6 +48,16 @@ function formatarQuantidadeItem(item) {
   return `${Number(item?.quantidade || 0)}x`
 }
 
+function calcularTotalComanda(comanda) {
+  if (comanda?.total != null && Number.isFinite(Number(comanda.total))) {
+    return Number(comanda.total)
+  }
+  return (comanda?.itens || []).reduce(
+    (acc, item) => acc + (item.subtotal ?? item.preco * item.quantidade),
+    0
+  )
+}
+
 export default function Caixa() {
   const [
     vendas,
@@ -634,6 +644,7 @@ export default function Caixa() {
           </div>
         ) : (
           comandasPendentes.map((comanda) => {
+            const totalComanda = calcularTotalComanda(comanda)
             return (
               <div
                 key={comanda.id}
@@ -662,6 +673,9 @@ export default function Caixa() {
                   )}
                 </div>
                 <div className="flex w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                  <p className="text-xl font-bold text-amber-800 tabular-nums">
+                    R$ {totalComanda.toFixed(2)}
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
