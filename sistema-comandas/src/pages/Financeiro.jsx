@@ -129,12 +129,11 @@ export default function Financeiro() {
         <h2 className="text-2xl font-bold text-amber-900">Financeiro — acesso restrito</h2>
         <div className="rounded-xl border-2 border-amber-300 bg-white p-5 shadow-sm">
           <p className="text-sm leading-relaxed text-stone-700">
-            Só quem souber a <span className="font-semibold">senha exclusiva da Maria</span> vê valores e
-            histórico aqui neste navegador. O total geral também foi removido do Dashboard.
+            Informe a senha de acesso para ver valores e histórico neste navegador.
           </p>
           <form className="mt-4 space-y-3" onSubmit={handleDesbloquear}>
             <label className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
-              Senha Maria
+              Senha
               <input
                 type="password"
                 autoComplete="off"
@@ -152,10 +151,7 @@ export default function Financeiro() {
               {enviandoSenha ? 'Verificando…' : 'Entrar no Financeiro'}
             </button>
           </form>
-        </div>
-        <p className="text-center text-[11px] text-stone-500">
-          O administrador deve definir FINANCEIRO_MARIA_SENHA nas variáveis de ambiente do servidor.
-        </p>
+        </div>>
       </div>
     )
   }
@@ -181,19 +177,13 @@ export default function Financeiro() {
 
       <aside
         className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm text-amber-950"
-        aria-label="Senha Maria e sobre dia operacional"
+        aria-label="Sobre dia operacional"
       >
-        <p className="text-sm font-semibold text-amber-950">Acesso e virada às {HORA_VIRADA_CAIXA_TEXTO}</p>
-        <ul className="mt-2 list-inside list-disc space-y-1 text-sm leading-relaxed text-amber-900/90">
-          <li>
-            Esta tela ficou apenas com Maria: use a senha exclusiva configurada pelo servidor como{' '}
-            <span className="font-semibold">FINANCEIRO_MARIA_SENHA</span>.
-          </li>
-          <li>
-            Às <span className="font-semibold">{HORA_VIRADA_CAIXA_TEXTO}</span>, fecha o período atual do caixa nos
-            totais do dia — o Dashboard e o Caixa passam ao “novo dia”, mas os registros seguem aparecendo neste histórico.
-          </li>
-        </ul>
+        <p className="text-sm font-semibold text-amber-950">Virada do caixa às {HORA_VIRADA_CAIXA_TEXTO}</p>
+        <p className="mt-2 text-sm leading-relaxed text-amber-900/90">
+          Às <span className="font-semibold">{HORA_VIRADA_CAIXA_TEXTO}</span>, fecha o período atual do caixa nos
+          totais do dia — o Dashboard e o Caixa passam ao “novo dia”, mas os registros seguem aparecendo neste histórico.
+        </p>
       </aside>
 
       <div className="rounded-xl bg-white border-2 border-amber-200 p-4 shadow-sm md:p-6">

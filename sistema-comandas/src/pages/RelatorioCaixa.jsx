@@ -96,12 +96,11 @@ export default function RelatorioCaixa() {
         <h2 className="text-2xl font-bold text-amber-900">Relatório de Caixa — acesso restrito</h2>
         <div className="rounded-xl border-2 border-amber-300 bg-white p-5 shadow-sm">
           <p className="text-sm leading-relaxed text-stone-700">
-            Só quem souber a <span className="font-semibold">senha exclusiva da Maria</span> vê o histórico de
-            fechamentos aqui neste navegador.
+            Informe a senha de acesso para ver o histórico de fechamentos neste navegador.
           </p>
           <form className="mt-4 space-y-3" onSubmit={handleDesbloquear}>
             <label className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
-              Senha Maria
+              Senha
               <input
                 type="password"
                 autoComplete="off"
@@ -120,10 +119,7 @@ export default function RelatorioCaixa() {
             </button>
           </form>
         </div>
-        <p className="text-center text-[11px] text-stone-500">
-          A mesma senha do Financeiro — configure FINANCEIRO_MARIA_SENHA no servidor.
-        </p>
-      </div>
+      </div>>
     )
   }
 

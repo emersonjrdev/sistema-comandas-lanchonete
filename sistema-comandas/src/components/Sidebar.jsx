@@ -7,8 +7,8 @@ export const navItems = [
   { to: '/caixa', label: 'Caixa', icon: '💰', adminOnly: true },
   { to: '/produtos', label: 'Produtos', icon: '🍔', adminOnly: true },
   { to: '/estoque', label: 'Estoque', icon: '📦', adminOnly: true },
-  { to: '/financeiro', label: 'Financeiro (senha Maria)', icon: '📈', adminOnly: true },
-  { to: '/relatorio-caixa', label: 'Relatório Caixa (senha Maria)', icon: '📑', adminOnly: true },
+  { to: '/financeiro', label: 'Financeiro', icon: '📈', adminOnly: true },
+  { to: '/relatorio-caixa', label: 'Relatório Caixa', icon: '📑', adminOnly: true },
 ]
 
 export default function Sidebar() {
