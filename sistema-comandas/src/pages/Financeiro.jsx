@@ -151,7 +151,7 @@ export default function Financeiro() {
               {enviandoSenha ? 'Verificando…' : 'Entrar no Financeiro'}
             </button>
           </form>
-        </div>>
+        </div>
       </div>
     )
   }

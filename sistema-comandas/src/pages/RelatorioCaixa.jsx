@@ -119,7 +119,7 @@ export default function RelatorioCaixa() {
             </button>
           </form>
         </div>
-      </div>>
+      </div>
     )
   }
 
