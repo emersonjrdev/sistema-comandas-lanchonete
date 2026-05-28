@@ -1,12 +1,14 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 const ToastContext = createContext(null)
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
+  const idRef = useRef(0)
 
   const show = useCallback((message, type = 'success') => {
-    const id = Date.now()
+    const id = ++idRef.current
     setToasts((prev) => [...prev, { id, message, type }])
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
@@ -14,9 +16,9 @@ export function ToastProvider({ children }) {
   }, [])
 
   const value = { show }
-  return (
-    <ToastContext.Provider value={value}>
-      {children}
+
+  const toastUi =
+    toasts.length > 0 ? (
       <div
         className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2"
         role="region"
@@ -38,6 +40,12 @@ export function ToastProvider({ children }) {
           </div>
         ))}
       </div>
+    ) : null
+
+  return (
+    <ToastContext.Provider value={value}>
+      {children}
+      {typeof document !== 'undefined' ? createPortal(toastUi, document.body) : null}
     </ToastContext.Provider>
   )
 }

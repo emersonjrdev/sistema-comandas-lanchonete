@@ -25,6 +25,11 @@ function CarregandoPagina() {
   )
 }
 
+/** Suspense por página — evita desmontar MainLayout ao trocar de rota (erro removeChild). */
+function PaginaSuspensa({ children }) {
+  return <Suspense fallback={<CarregandoPagina />}>{children}</Suspense>
+}
+
 function RotasProtegidas() {
   const { usuario, carregando, login, isAdmin } = useAuth()
 
@@ -41,23 +46,91 @@ function RotasProtegidas() {
   }
 
   return (
-    <Suspense fallback={<CarregandoPagina />}>
-      <Routes>
-        <Route path="/" element={<MainLayout />}>
-          <Route index element={isAdmin ? <Dashboard /> : <Navigate to="/comandas" replace />} />
-          <Route path="comandas" element={<Comandas />} />
-          <Route path="caixa" element={isAdmin ? <Caixa /> : <Navigate to="/comandas" replace />} />
-          <Route path="produtos" element={isAdmin ? <Produtos /> : <Navigate to="/comandas" replace />} />
-          <Route path="estoque" element={isAdmin ? <Estoque /> : <Navigate to="/comandas" replace />} />
-          <Route path="financeiro" element={isAdmin ? <Financeiro /> : <Navigate to="/comandas" replace />} />
-          <Route
-            path="relatorio-caixa"
-            element={isAdmin ? <RelatorioCaixa /> : <Navigate to="/comandas" replace />}
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </Suspense>
+    <Routes>
+      <Route path="/" element={<MainLayout />}>
+        <Route
+          index
+          element={
+            isAdmin ? (
+              <PaginaSuspensa>
+                <Dashboard />
+              </PaginaSuspensa>
+            ) : (
+              <Navigate to="/comandas" replace />
+            )
+          }
+        />
+        <Route
+          path="comandas"
+          element={
+            <PaginaSuspensa>
+              <Comandas />
+            </PaginaSuspensa>
+          }
+        />
+        <Route
+          path="caixa"
+          element={
+            isAdmin ? (
+              <PaginaSuspensa>
+                <Caixa />
+              </PaginaSuspensa>
+            ) : (
+              <Navigate to="/comandas" replace />
+            )
+          }
+        />
+        <Route
+          path="produtos"
+          element={
+            isAdmin ? (
+              <PaginaSuspensa>
+                <Produtos />
+              </PaginaSuspensa>
+            ) : (
+              <Navigate to="/comandas" replace />
+            )
+          }
+        />
+        <Route
+          path="estoque"
+          element={
+            isAdmin ? (
+              <PaginaSuspensa>
+                <Estoque />
+              </PaginaSuspensa>
+            ) : (
+              <Navigate to="/comandas" replace />
+            )
+          }
+        />
+        <Route
+          path="financeiro"
+          element={
+            isAdmin ? (
+              <PaginaSuspensa>
+                <Financeiro />
+              </PaginaSuspensa>
+            ) : (
+              <Navigate to="/comandas" replace />
+            )
+          }
+        />
+        <Route
+          path="relatorio-caixa"
+          element={
+            isAdmin ? (
+              <PaginaSuspensa>
+                <RelatorioCaixa />
+              </PaginaSuspensa>
+            ) : (
+              <Navigate to="/comandas" replace />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
   )
 }
 

@@ -4,39 +4,53 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
 
-/** Remove SW antigo que quebrava /caixa; registra versão corrigida. */
-async function configurarServiceWorker() {
-  if (!('serviceWorker' in navigator)) return
+/** Evita crash quando extensões (ex.: tradutor) alteram o DOM fora do React. */
+function aplicarProtecaoDom() {
+  if (typeof window === 'undefined' || window.__pdvDomProtecao) return
+  window.__pdvDomProtecao = true
 
+  const originalRemoveChild = Node.prototype.removeChild
+  Node.prototype.removeChild = function removeChildSeguro(child) {
+    if (child?.parentNode !== this) return child
+    try {
+      return originalRemoveChild.call(this, child)
+    } catch (error) {
+      if (error?.name === 'NotFoundError') return child
+      throw error
+    }
+  }
+}
+
+async function removerServiceWorkers() {
+  if (!('serviceWorker' in navigator)) return
   try {
     const registros = await navigator.serviceWorker.getRegistrations()
-    for (const reg of registros) {
-      await reg.unregister()
-    }
+    await Promise.all(registros.map((reg) => reg.unregister()))
     if ('caches' in window) {
       const keys = await caches.keys()
       await Promise.all(keys.map((key) => caches.delete(key)))
     }
-    await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-  } catch (error) {
-    console.warn('Service worker não configurado:', error)
+  } catch {
+    // Ignora falha de limpeza
   }
 }
 
-window.addEventListener('load', () => {
-  configurarServiceWorker()
-})
+aplicarProtecaoDom()
+removerServiceWorkers()
 
-const root = ReactDOM.createRoot(document.getElementById('root'))
-root.render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </React.StrictMode>,
+const rootEl = document.getElementById('root')
+const app = (
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
 )
 
-// Esconde a splash quando o app estiver montado (após paint + tempo mínimo)
+if (import.meta.env.DEV) {
+  ReactDOM.createRoot(rootEl).render(<React.StrictMode>{app}</React.StrictMode>)
+} else {
+  ReactDOM.createRoot(rootEl).render(app)
+}
+
 const hideSplash = () => {
   const splash = document.getElementById('splash')
   if (splash) splash.classList.add('loaded')

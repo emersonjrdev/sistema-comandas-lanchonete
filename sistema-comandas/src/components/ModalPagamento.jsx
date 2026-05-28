@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { formatarCentavosInput, moedaInputParaNumero } from '../utils/moeda'
 
 const METODOS = {
@@ -66,7 +67,7 @@ export default function ModalPagamento({ total, onConfirmar, onCancelar }) {
     overlayRef.current?.focus()
   }, [])
 
-  return (
+  const modal = (
     <div
       ref={overlayRef}
       tabIndex={-1}
@@ -156,4 +157,6 @@ export default function ModalPagamento({ total, onConfirmar, onCancelar }) {
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }

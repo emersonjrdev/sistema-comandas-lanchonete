@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import Sidebar, { navItems } from '../components/Sidebar'
 import Topbar from '../components/Topbar'
@@ -20,10 +20,6 @@ export default function MainLayout() {
     const atual = itensVisiveis.find((item) => item.to === location.pathname)
     return atual?.label || 'Sistema'
   }, [itensVisiveis, location.pathname])
-
-  useEffect(() => {
-    setMenuAberto(false)
-  }, [location.pathname])
 
   if (isMobile) {
     return (
@@ -68,6 +64,7 @@ export default function MainLayout() {
                     key={item.to}
                     to={item.to}
                     end={item.to === '/'}
+                    onClick={() => setMenuAberto(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all ${
                         isActive
