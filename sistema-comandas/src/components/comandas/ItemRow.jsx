@@ -1,4 +1,6 @@
-export default function ItemRow({ item, onQuantidadeChange, onRemover, ocultarValores = false }) {
+import { memo } from 'react'
+
+function ItemRow({ item, onQuantidadeChange, onRemover, ocultarValores = false }) {
   const preco = Number(item?.preco ?? 0)
   const subtotal = Number(item?.subtotal ?? preco * (item?.quantidade ?? 1))
   const itemPorPeso = item?.unidadeMedida === 'gramas'
@@ -68,3 +70,5 @@ export default function ItemRow({ item, onQuantidadeChange, onRemover, ocultarVa
     </div>
   )
 }
+
+export default memo(ItemRow)

@@ -1,7 +1,8 @@
 import { apiRequest } from './api'
+import { emitPdvStorageUpdate } from '../utils/pdvEvents'
 
 function emitUpdate() {
-  window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+  emitPdvStorageUpdate()
 }
 
 export async function registrarSangria(caixaId, valor, motivo, operadorId) {

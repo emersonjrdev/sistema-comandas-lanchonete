@@ -1,5 +1,6 @@
 import { apiRequest } from './api'
 import { obterCabecalhoFinanceiroOuNull } from './financeiroAccess'
+import { emitPdvStorageUpdate } from '../utils/pdvEvents'
 
 function cabecalhoFinanceiroObrigatorio() {
   const headers = obterCabecalhoFinanceiroOuNull()
@@ -8,7 +9,7 @@ function cabecalhoFinanceiroObrigatorio() {
 }
 
 function emitUpdate() {
-  window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+  emitPdvStorageUpdate()
 }
 
 export async function isCaixaAberto() {

@@ -1,9 +1,14 @@
-export default function ComandaCard({ comanda, onClick, isMobile }) {
-  const total = comanda.total ?? (comanda.itens || []).reduce(
-    (acc, item) => acc + (item.subtotal ?? item.preco * item.quantidade),
-    0
-  )
-  const qtdItens = (comanda.itens || []).reduce((acc, item) => acc + (item.quantidade || 0), 0)
+import { memo, useMemo } from 'react'
+
+function ComandaCard({ comanda, onClick, isMobile }) {
+  const { total, qtdItens } = useMemo(() => {
+    const itens = comanda.itens || []
+    const totalCalc =
+      comanda.total ??
+      itens.reduce((acc, item) => acc + (item.subtotal ?? item.preco * item.quantidade), 0)
+    const qtd = itens.reduce((acc, item) => acc + (item.quantidade || 0), 0)
+    return { total: totalCalc, qtdItens: qtd }
+  }, [comanda])
 
   return (
     <button
@@ -34,3 +39,5 @@ export default function ComandaCard({ comanda, onClick, isMobile }) {
     </button>
   )
 }
+
+export default memo(ComandaCard)

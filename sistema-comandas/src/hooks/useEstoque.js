@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   getProdutosComEstoque,
   getProdutosEstoqueBaixo,
@@ -6,20 +6,14 @@ import {
   incrementarEstoque,
   limparEstoqueNaoFixos,
 } from '../services/estoqueService'
-
-function useRefreshOnStorageUpdate(refresh) {
-  useEffect(() => {
-    const handler = () => refresh()
-    window.addEventListener('pdv:storage-update', handler)
-    return () => window.removeEventListener('pdv:storage-update', handler)
-  }, [refresh])
-}
+import { subscribePdvStorageUpdate } from '../utils/pdvEvents'
+import { createRefreshRunner } from '../utils/refreshQueue'
 
 export function useEstoque() {
   const [produtos, setProdutos] = useState([])
   const [estoqueBaixo, setEstoqueBaixo] = useState([])
 
-  const refresh = useCallback(async () => {
+  const load = useCallback(async () => {
     const [produtosData, baixo] = await Promise.all([
       getProdutosComEstoque(),
       getProdutosEstoqueBaixo(5),
@@ -28,6 +22,8 @@ export function useEstoque() {
     setEstoqueBaixo(baixo)
   }, [])
 
+  const refresh = useMemo(() => createRefreshRunner(load), [load])
+
   useEffect(() => {
     refresh().catch(() => {
       setProdutos([])
@@ -35,7 +31,7 @@ export function useEstoque() {
     })
   }, [refresh])
 
-  useRefreshOnStorageUpdate(refresh)
+  useEffect(() => subscribePdvStorageUpdate(refresh), [refresh])
 
   return [produtos, estoqueBaixo, refresh, { setEstoque, incrementarEstoque, limparEstoqueNaoFixos }]
 }

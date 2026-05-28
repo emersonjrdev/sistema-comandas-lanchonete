@@ -1,14 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getRelatoriosCaixa, getTotaisHoje } from '../services/caixaService'
 import { sessaoFinanceiroValida } from '../services/financeiroAccess'
-
-function useRefreshOnStorageUpdate(refresh) {
-  useEffect(() => {
-    const handler = () => refresh()
-    window.addEventListener('pdv:storage-update', handler)
-    return () => window.removeEventListener('pdv:storage-update', handler)
-  }, [refresh])
-}
+import { subscribePdvStorageUpdate } from '../utils/pdvEvents'
+import { createRefreshRunner } from '../utils/refreshQueue'
 
 export function useRelatorios({ habilitado = false } = {}) {
   const [relatorios, setRelatorios] = useState([])
@@ -18,7 +12,7 @@ export function useRelatorios({ habilitado = false } = {}) {
     totalPix: 0,
   })
 
-  const refresh = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!sessaoFinanceiroValida()) {
       setRelatorios([])
       setTotaisHoje({ totalDinheiro: 0, totalCartao: 0, totalPix: 0 })
@@ -31,6 +25,8 @@ export function useRelatorios({ habilitado = false } = {}) {
     setRelatorios(relatoriosData)
     setTotaisHoje(totais)
   }, [])
+
+  const refresh = useMemo(() => createRefreshRunner(load), [load])
 
   useEffect(() => {
     if (!habilitado || !sessaoFinanceiroValida()) {
@@ -45,7 +41,7 @@ export function useRelatorios({ habilitado = false } = {}) {
     return undefined
   }, [habilitado, refresh])
 
-  useRefreshOnStorageUpdate(refresh)
+  useEffect(() => subscribePdvStorageUpdate(refresh), [refresh])
 
   return [relatorios, totaisHoje, refresh]
 }

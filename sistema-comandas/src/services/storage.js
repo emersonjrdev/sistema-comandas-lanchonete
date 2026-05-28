@@ -1,8 +1,9 @@
 import { apiRequest } from './api'
 import { obterCabecalhoFinanceiroOuNull } from './financeiroAccess'
+import { emitPdvStorageUpdate } from '../utils/pdvEvents'
 
 function emitUpdate() {
-  window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+  emitPdvStorageUpdate()
 }
 
 // --- Produtos ---
@@ -91,6 +92,11 @@ export async function enviarParaCaixa(comandaId) {
 
 export async function getComandasAguardandoPagamento() {
   return apiRequest('/comandas/aguardando-pagamento')
+}
+
+/** Abertas + aguardando pagamento em uma única requisição (tela do caixa). */
+export async function getComandasPainelCaixa() {
+  return apiRequest('/comandas/painel-caixa')
 }
 
 export async function confirmarPagamento(comandaId, metodoPagamento, valorRecebido, troco) {

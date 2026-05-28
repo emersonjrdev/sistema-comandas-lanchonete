@@ -1,5 +1,6 @@
 import { apiRequest } from './api'
 import { getProdutos } from './storage'
+import { emitPdvStorageUpdate } from '../utils/pdvEvents'
 
 export async function getProdutosComEstoque() {
   const produtos = await getProdutos()
@@ -20,7 +21,7 @@ export async function decrementarEstoque(produtoId, quantidade) {
       method: 'PATCH',
       body: { operacao: 'decrementar', quantidade },
     })
-    window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+    emitPdvStorageUpdate()
     return { sucesso: true }
   } catch (error) {
     return { sucesso: false, erro: error.message }
@@ -33,7 +34,7 @@ export async function incrementarEstoque(produtoId, quantidade) {
       method: 'PATCH',
       body: { operacao: 'incrementar', quantidade },
     })
-    window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+    emitPdvStorageUpdate()
     return { sucesso: true }
   } catch (error) {
     return { sucesso: false, erro: error.message }
@@ -46,7 +47,7 @@ export async function setEstoque(produtoId, quantidade) {
       method: 'PATCH',
       body: { operacao: 'set', quantidade },
     })
-    window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+    emitPdvStorageUpdate()
     return { sucesso: true }
   } catch (error) {
     return { sucesso: false, erro: error.message }
@@ -62,7 +63,7 @@ export async function limparEstoqueNaoFixos(operadorId) {
       body: operadorIdNorm ? { operadorId: operadorIdNorm } : {},
       headers: operadorIdNorm ? { 'x-operador-id': operadorIdNorm } : {},
     })
-    window.dispatchEvent(new CustomEvent('pdv:storage-update'))
+    emitPdvStorageUpdate()
     return result
   } catch (error) {
     return { sucesso: false, erro: error.message }

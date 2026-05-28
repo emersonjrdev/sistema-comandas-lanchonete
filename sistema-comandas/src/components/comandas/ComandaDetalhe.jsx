@@ -29,6 +29,7 @@ export default function ComandaDetalhe({
   const [pesoFrioInput, setPesoFrioInput] = useState('100')
   const [pesoFrioUnidade, setPesoFrioUnidade] = useState('g')
   const [valorOpcionalPeso, setValorOpcionalPeso] = useState('')
+  const [processando, setProcessando] = useState(false)
   const toast = useToast()
   const tiposFrios = ['Presunto', 'Queijo', 'Mortadela', 'Peito de Peru', 'Salame']
 
@@ -80,7 +81,7 @@ export default function ComandaDetalhe({
   }, [isMobile, isTablet])
 
   async function handleAdicionarProduto() {
-    if (!produtoSelecionado) return
+    if (!produtoSelecionado || processando) return
     const quantidadeNum = Math.max(1, parseInt(quantidade, 10) || 1)
     const pesoBase = Math.max(1, parseFloat(String(pesoFrioInput || '').replace(',', '.')) || 0)
     const pesoGramas = pesoFrioUnidade === 'kg' ? Math.round(pesoBase * 1000) : Math.round(pesoBase)
@@ -109,6 +110,7 @@ export default function ComandaDetalhe({
     } else {
       payload = { quantidade: quantidadeNum, ...(selecionadoEhFixo ? { valorTotal: valorTotalNum } : {}) }
     }
+    setProcessando(true)
     try {
       const atualizada = await adicionarItem(comanda.id, produtoSelecionado, payload)
       if (atualizada) {
@@ -130,26 +132,36 @@ export default function ComandaDetalhe({
     } catch (err) {
       playSomErro()
       toast.show(err?.message || 'Erro ao adicionar item. Verifique a conexão.', 'error')
+    } finally {
+      setProcessando(false)
     }
   }
 
   async function handleQuantidadeChange(itemId, novaQuantidade) {
+    if (processando) return
+    setProcessando(true)
     try {
       const atualizada = await alterarQtd(comanda.id, itemId, novaQuantidade)
       if (atualizada) onComandaAtualizada(atualizada)
     } catch (err) {
       playSomErro()
       toast.show(err?.message || 'Erro ao alterar quantidade', 'error')
+    } finally {
+      setProcessando(false)
     }
   }
 
   async function handleRemover(itemId) {
+    if (processando) return
+    setProcessando(true)
     try {
       const atualizada = await removerItem(comanda.id, itemId)
       if (atualizada) onComandaAtualizada(atualizada)
     } catch (err) {
       playSomErro()
       toast.show(err?.message || 'Erro ao remover item', 'error')
+    } finally {
+      setProcessando(false)
     }
   }
 
@@ -354,9 +366,10 @@ export default function ComandaDetalhe({
               <button
                 type="button"
                 onClick={handleAdicionarProduto}
-                className="px-4 py-3 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 touch-manipulation"
+                disabled={processando}
+                className="px-4 py-3 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 touch-manipulation disabled:opacity-50"
               >
-                Adicionar
+                {processando ? 'Salvando...' : 'Adicionar'}
               </button>
               <button
                 type="button"
@@ -424,7 +437,8 @@ export default function ComandaDetalhe({
       <button
         type="button"
         onClick={handleEnviarParaCaixa}
-        className={`w-full rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-colors touch-manipulation ${
+        disabled={processando}
+        className={`w-full rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-colors touch-manipulation disabled:opacity-50 ${
           isMobile || isTablet
             ? 'px-8 py-5 text-xl min-h-[64px]'
             : 'sm:w-auto px-8 py-4 text-lg min-h-[56px]'

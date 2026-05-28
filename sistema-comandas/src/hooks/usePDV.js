@@ -1,13 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { getProdutos, getComandas, getResumoDashboard } from '../services/storage'
 import { useToast } from '../contexts/ToastContext'
+import { subscribePdvStorageUpdate } from '../utils/pdvEvents'
+import { createRefreshRunner } from '../utils/refreshQueue'
 
 function useRefreshOnStorageUpdate(refresh) {
-  useEffect(() => {
-    const handler = () => refresh()
-    window.addEventListener('pdv:storage-update', handler)
-    return () => window.removeEventListener('pdv:storage-update', handler)
-  }, [refresh])
+  useEffect(() => subscribePdvStorageUpdate(refresh), [refresh])
 }
 
 export { useCaixa } from './useCaixa'
@@ -16,9 +14,11 @@ export function useProdutos() {
   const [produtos, setProdutos] = useState([])
   const { show: toastShow } = useToast()
   const toastRef = useRef(toastShow)
-  toastRef.current = toastShow
+  useEffect(() => {
+    toastRef.current = toastShow
+  }, [toastShow])
 
-  const refresh = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
       const data = await getProdutos()
       setProdutos(data)
@@ -28,21 +28,33 @@ export function useProdutos() {
     }
   }, [])
 
+  const refresh = useMemo(() => createRefreshRunner(load), [load])
+
   useEffect(() => {
     refresh()
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)
-  return [produtos, refresh]
+
+  const patchProduto = useCallback((produtoAtualizado) => {
+    if (!produtoAtualizado?.id) return
+    setProdutos((prev) =>
+      prev.map((p) => (String(p.id) === String(produtoAtualizado.id) ? produtoAtualizado : p))
+    )
+  }, [])
+
+  return [produtos, refresh, { patchProduto }]
 }
 
 export function useComandas() {
   const [comandas, setComandas] = useState([])
   const { show: toastShow } = useToast()
   const toastRef = useRef(toastShow)
-  toastRef.current = toastShow
+  useEffect(() => {
+    toastRef.current = toastShow
+  }, [toastShow])
 
-  const refresh = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
       const data = await getComandas()
       setComandas(data)
@@ -52,12 +64,31 @@ export function useComandas() {
     }
   }, [])
 
+  const refresh = useMemo(() => createRefreshRunner(load), [load])
+
   useEffect(() => {
     refresh()
   }, [refresh])
 
   useRefreshOnStorageUpdate(refresh)
-  return [comandas, refresh]
+
+  const patchComanda = useCallback((comandaAtualizada) => {
+    if (!comandaAtualizada?.id) return
+    setComandas((prev) => {
+      const idx = prev.findIndex((c) => String(c.id) === String(comandaAtualizada.id))
+      if (idx < 0) return [...prev, comandaAtualizada]
+      const next = [...prev]
+      next[idx] = comandaAtualizada
+      return next
+    })
+  }, [])
+
+  const removeComanda = useCallback((comandaId) => {
+    if (!comandaId) return
+    setComandas((prev) => prev.filter((c) => String(c.id) !== String(comandaId)))
+  }, [])
+
+  return [comandas, refresh, { patchComanda, removeComanda }]
 }
 
 export function useDashboard() {
@@ -71,10 +102,12 @@ export function useDashboard() {
     vendasAmostra: [],
   })
 
-  const refresh = useCallback(async () => {
+  const load = useCallback(async () => {
     const data = await getResumoDashboard()
     setResumo(data)
   }, [])
+
+  const refresh = useMemo(() => createRefreshRunner(load), [load])
 
   useEffect(() => {
     refresh().catch(() => {

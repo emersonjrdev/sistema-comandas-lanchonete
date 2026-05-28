@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { getComandas, getComandasAguardandoPagamento } from '../services/storage'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { getComandasPainelCaixa } from '../services/storage'
 import { listarSangrias, getTotalSangrias, registrarSangria } from '../services/sangriaService'
 import {
   getTotaisHoje,
@@ -9,13 +9,17 @@ import {
   limparDadosCaixa,
   getRelatoriosCaixa,
 } from '../services/caixaService'
+import { subscribePdvStorageUpdate } from '../utils/pdvEvents'
+import { createRefreshRunner } from '../utils/refreshQueue'
 
-function useRefreshOnStorageUpdate(refresh) {
-  useEffect(() => {
-    const handler = () => refresh()
-    window.addEventListener('pdv:storage-update', handler)
-    return () => window.removeEventListener('pdv:storage-update', handler)
-  }, [refresh])
+function mesclarComandasPainelCaixa(payload) {
+  const abertas = payload?.abertas || []
+  const aguardando = payload?.aguardando || []
+  const porId = new Map()
+  for (const comanda of [...aguardando, ...abertas]) {
+    if (comanda?.id) porId.set(comanda.id, comanda)
+  }
+  return Array.from(porId.values())
 }
 
 export function useCaixa() {
@@ -32,20 +36,14 @@ export function useCaixa() {
     totalHoje: 0,
   })
 
-  const refresh = useCallback(async () => {
-    const [abertas, pendentes, totaisHoje, caixa] = await Promise.all([
-      getComandas(),
-      getComandasAguardandoPagamento(),
+  const load = useCallback(async () => {
+    const [painelComandas, totaisHoje, caixa] = await Promise.all([
+      getComandasPainelCaixa(),
       getTotaisHoje(),
       getCaixaAtual(),
     ])
-    const todasParaCaixa = [...pendentes, ...abertas.filter((c) => c?.status === 'aberta')]
-    const porId = new Map()
-    for (const comanda of todasParaCaixa) {
-      if (comanda?.id) porId.set(comanda.id, comanda)
-    }
     setVendas(totaisHoje?.vendasHoje || [])
-    setComandasPendentes(Array.from(porId.values()))
+    setComandasPendentes(mesclarComandasPainelCaixa(painelComandas))
     setCaixaAberto(caixa?.aberto === true)
     setTotais(totaisHoje)
     setCaixaAtual(caixa)
@@ -63,6 +61,8 @@ export function useCaixa() {
     }
   }, [])
 
+  const refresh = useMemo(() => createRefreshRunner(load), [load])
+
   useEffect(() => {
     refresh().catch(() => {
       setVendas([])
@@ -75,10 +75,10 @@ export function useCaixa() {
     })
   }, [refresh])
 
-  useRefreshOnStorageUpdate(refresh)
+  useEffect(() => subscribePdvStorageUpdate(refresh), [refresh])
 
   useEffect(() => {
-    const intervaloMs = 30000
+    const intervaloMs = 45000
     let intervalId = null
 
     function iniciarPolling() {
@@ -116,6 +116,22 @@ export function useCaixa() {
     }
   }, [refresh])
 
+  const patchComandaPendente = useCallback((comandaAtualizada) => {
+    if (!comandaAtualizada?.id) return
+    setComandasPendentes((prev) => {
+      const idx = prev.findIndex((c) => String(c.id) === String(comandaAtualizada.id))
+      if (idx < 0) return [...prev, comandaAtualizada]
+      const next = [...prev]
+      next[idx] = comandaAtualizada
+      return next
+    })
+  }, [])
+
+  const removeComandaPendente = useCallback((comandaId) => {
+    if (!comandaId) return
+    setComandasPendentes((prev) => prev.filter((c) => String(c.id) !== String(comandaId)))
+  }, [])
+
   return [
     vendas,
     refresh,
@@ -131,6 +147,8 @@ export function useCaixa() {
       registrarSangria,
       limparDadosCaixa,
       getRelatoriosCaixa,
+      patchComandaPendente,
+      removeComandaPendente,
     },
   ]
 }

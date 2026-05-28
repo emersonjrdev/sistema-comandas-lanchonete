@@ -71,6 +71,8 @@ export default function Caixa() {
       fecharCaixa,
       registrarSangria,
       limparDadosCaixa,
+      patchComandaPendente,
+      removeComandaPendente,
     },
   ] = useCaixa()
   const { usuario, isAdmin } = useAuth()
@@ -247,6 +249,7 @@ export default function Caixa() {
     if (venda) {
       playSomVenda()
       toast.show('Pagamento confirmado!')
+      removeComandaPendente(comandaPagamento.id)
       setComandaPagamento(null)
       await refresh()
     } else {
@@ -388,7 +391,7 @@ export default function Caixa() {
     )
     if (comandaAtualizada) {
       playSomVenda()
-      await refresh()
+      patchComandaPendente(comandaAtualizada)
       setProdutoComandaSelecionado('')
       setQuantidadeComanda('1')
       setValorTotalComanda('')
@@ -407,7 +410,7 @@ export default function Caixa() {
     if (!comandaEdicaoId) return
     const comandaAtualizada = await alterarQtd(comandaEdicaoId, itemId, novaQuantidade)
     if (comandaAtualizada) {
-      await refresh()
+      patchComandaPendente(comandaAtualizada)
     } else {
       playSomErro()
       toast.show('Erro ao atualizar quantidade do item', 'error')
@@ -419,7 +422,7 @@ export default function Caixa() {
     const comandaAtualizada = await removerItem(comandaEdicaoId, itemId)
     if (comandaAtualizada) {
       playSomVenda()
-      await refresh()
+      patchComandaPendente(comandaAtualizada)
       toast.show('Item removido do pedido!')
     } else {
       playSomErro()

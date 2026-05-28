@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import ComandaCard from '../components/comandas/ComandaCard'
 import ComandaDetalhe from '../components/comandas/ComandaDetalhe'
 import { criarComanda, excluirComandasAbertas } from '../services/storage'
@@ -8,8 +8,16 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { playSomAcao, playSomErro } from '../utils/sons'
 
+function normalizarTexto(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
 export default function ComandasPage() {
-  const [comandas, refreshComandas] = useComandas()
+  const [comandas, refreshComandas, { patchComanda, removeComanda }] = useComandas()
   const [produtos] = useProdutos()
   const { usuario, isAdmin } = useAuth()
   const toast = useToast()
@@ -21,34 +29,27 @@ export default function ComandasPage() {
   const bipadorRef = useRef(null)
   const { isMobile, isTablet } = useResponsive()
 
-  function normalizarTexto(valor) {
-    return String(valor || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim()
-  }
+  const termoBusca = useMemo(() => normalizarTexto(busca), [busca])
 
-  const termoBusca = normalizarTexto(busca)
-  const comandasFiltradas = termoBusca
-    ? comandas.filter((c) => {
-        const camposBusca = [
-          c.identificacao,
-          c.cliente,
-          c.numero_comanda,
-          c.numeroComanda,
-          c.id,
-        ]
-
-        return camposBusca.some((campo) => normalizarTexto(campo).includes(termoBusca))
-      })
-    : comandas
+  const comandasFiltradas = useMemo(() => {
+    if (!termoBusca) return comandas
+    return comandas.filter((c) => {
+      const camposBusca = [
+        c.identificacao,
+        c.cliente,
+        c.numero_comanda,
+        c.numeroComanda,
+        c.id,
+      ]
+      return camposBusca.some((campo) => normalizarTexto(campo).includes(termoBusca))
+    })
+  }, [comandas, termoBusca])
 
   useEffect(() => {
     if (isMobile) bipadorRef.current?.focus()
   }, [isMobile])
 
-  async function handleCriarNovaComanda() {
+  const handleCriarNovaComanda = useCallback(async () => {
     const numeroComanda = String(numeroNovaComanda || '').trim()
     if (!numeroComanda) {
       playSomErro()
@@ -67,62 +68,68 @@ export default function ComandasPage() {
 
     const numeroFormatado = String(numeroInt).padStart(3, '0')
     setCriandoComanda(true)
-    let nova = null
     const timeoutMs = 25000
     const criarComPromise = criarComanda(numeroFormatado)
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('A requisição demorou muito. Tente novamente.')), timeoutMs)
     )
     try {
-      nova = await Promise.race([criarComPromise, timeoutPromise])
+      const nova = await Promise.race([criarComPromise, timeoutPromise])
+      if (!nova) {
+        playSomErro()
+        toast.show('Não foi possível criar a comanda. Tente novamente.', 'error')
+        return
+      }
+      playSomAcao()
+      setMostrarModalNovaComanda(false)
+      setNumeroNovaComanda('')
+      patchComanda(nova)
+      setComandaSelecionada(nova)
     } catch (error) {
       playSomErro()
       toast.show(error?.message || 'Não foi possível criar a comanda. Verifique a conexão.', 'error')
-      return
     } finally {
       setCriandoComanda(false)
     }
-    if (!nova) {
-      playSomErro()
-      toast.show('Não foi possível criar a comanda. Tente novamente.', 'error')
-      return
-    }
-    playSomAcao()
-    setMostrarModalNovaComanda(false)
-    setNumeroNovaComanda('')
-    setComandaSelecionada(nova)
-    refreshComandas().catch(() => {})
-  }
+  }, [numeroNovaComanda, patchComanda, toast])
 
-  function abrirModalNovaComanda() {
+  const abrirModalNovaComanda = useCallback(() => {
     setNumeroNovaComanda('')
     setMostrarModalNovaComanda(true)
-  }
+  }, [])
 
-  function fecharModalNovaComanda() {
+  const fecharModalNovaComanda = useCallback(() => {
     setMostrarModalNovaComanda(false)
     setNumeroNovaComanda('')
-  }
+  }, [])
 
-  function handleAbrirComanda(comanda) {
+  const handleAbrirComanda = useCallback((comanda) => {
     setComandaSelecionada(comanda)
-  }
+  }, [])
 
-  function handleAtualizarComanda(comandaAtualizada) {
-    if (comandaAtualizada) setComandaSelecionada(comandaAtualizada)
-    refreshComandas()
-  }
+  const handleAtualizarComanda = useCallback(
+    (comandaAtualizada) => {
+      if (comandaAtualizada) {
+        patchComanda(comandaAtualizada)
+        setComandaSelecionada(comandaAtualizada)
+      }
+    },
+    [patchComanda]
+  )
 
-  function handleEnviada() {
-    refreshComandas()
+  const handleEnviada = useCallback(
+    (comandaId) => {
+      if (comandaId) removeComanda(comandaId)
+      setComandaSelecionada(null)
+    },
+    [removeComanda]
+  )
+
+  const handleVoltar = useCallback(() => {
     setComandaSelecionada(null)
-  }
+  }, [])
 
-  function handleVoltar() {
-    setComandaSelecionada(null)
-  }
-
-  async function handleExcluirComandasAbertas() {
+  const handleExcluirComandasAbertas = useCallback(async () => {
     if (!isAdmin) return
 
     const confirmou = window.confirm('Excluir TODAS as comandas abertas agora?')
@@ -145,13 +152,13 @@ export default function ComandasPage() {
       playSomErro()
       toast.show(error?.message || 'Erro ao excluir comandas abertas', 'error')
     }
-  }
-
+  }, [isAdmin, usuario?.id, refreshComandas, toast])
 
   const paddingClass = isMobile ? 'pb-24' : ''
 
   if (comandaSelecionada) {
-    const comandaAtual = comandas.find((c) => c.id === comandaSelecionada.id) || comandaSelecionada
+    const comandaAtual =
+      comandas.find((c) => c.id === comandaSelecionada.id) || comandaSelecionada
     return (
       <div className={paddingClass}>
         {!isMobile && <h2 className="text-2xl font-bold text-amber-900 mb-6">Comandas</h2>}
@@ -159,7 +166,7 @@ export default function ComandasPage() {
           comanda={comandaAtual}
           produtos={produtos}
           onComandaAtualizada={handleAtualizarComanda}
-          onEnviada={handleEnviada}
+          onEnviada={() => handleEnviada(comandaAtual.id)}
           onVoltar={handleVoltar}
           isMobile={isMobile}
           isTablet={isTablet}
@@ -170,9 +177,7 @@ export default function ComandasPage() {
 
   return (
     <div className={paddingClass}>
-      <div
-        className={`flex flex-col gap-4 mb-6 ${isMobile ? 'gap-6' : ''}`}
-      >
+      <div className={`flex flex-col gap-4 mb-6 ${isMobile ? 'gap-6' : ''}`}>
         {!isMobile && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h2 className="text-2xl font-bold text-amber-900">Comandas</h2>
@@ -203,7 +208,7 @@ export default function ComandasPage() {
           <button
             type="button"
             onClick={handleExcluirComandasAbertas}
-              className={`w-full rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors touch-manipulation shadow-lg ${
+            className={`w-full rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors touch-manipulation shadow-lg ${
               isMobile || isTablet
                 ? 'py-5 text-xl min-h-[64px]'
                 : 'px-6 py-3 text-base min-h-[48px]'

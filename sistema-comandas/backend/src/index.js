@@ -655,9 +655,19 @@ function invalidateComandasCache() {
   invalidateReadCache(
     'GET:/comandas:abertas',
     'GET:/comandas:aguardando',
+    'GET:/comandas:painel-caixa',
     'GET:/dashboard/resumo',
     'GET:/caixa/totais-hoje'
   )
+}
+
+function mapComandasDocs(snap) {
+  return snap.docs
+    .map((doc) => {
+      const comanda = docToEntity(doc)
+      return { ...comanda, itens: comanda.itens || [], total: Number(comanda.total || 0) }
+    })
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
 }
 
 function invalidateProdutosCache() {
@@ -870,26 +880,28 @@ app.post('/usuarios', async (req, res) => {
 
 app.get('/produtos', async (_, res) => {
   try {
-    const snap = await produtosCol.get()
-    const rows = snap.docs
-      .map((doc) => docToEntity(doc))
-      .sort((a, b) => {
-        const aFixo = a.fixo === true
-        const bFixo = b.fixo === true
-        if (aFixo !== bFixo) return aFixo ? -1 : 1
+    const rows = await withReadCache('GET:/produtos', async () => {
+      const snap = await produtosCol.get()
+      return snap.docs
+        .map((doc) => docToEntity(doc))
+        .sort((a, b) => {
+          const aFixo = a.fixo === true
+          const bFixo = b.fixo === true
+          if (aFixo !== bFixo) return aFixo ? -1 : 1
 
-        if (aFixo && bFixo) {
-          const idxA = PRODUTOS_FIXOS.findIndex(
-            (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(a.nome)
-          )
-          const idxB = PRODUTOS_FIXOS.findIndex(
-            (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(b.nome)
-          )
-          if (idxA !== idxB) return idxA - idxB
-        }
+          if (aFixo && bFixo) {
+            const idxA = PRODUTOS_FIXOS.findIndex(
+              (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(a.nome)
+            )
+            const idxB = PRODUTOS_FIXOS.findIndex(
+              (nome) => normalizarNomeProduto(nome) === normalizarNomeProduto(b.nome)
+            )
+            if (idxA !== idxB) return idxA - idxB
+          }
 
-        return new Date(b.created_at || 0) - new Date(a.created_at || 0)
-      })
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        })
+    })
     res.json(rows)
   } catch (err) {
     responderErroFirestore(res, err)
@@ -1044,13 +1056,10 @@ app.delete('/produtos/:id', async (req, res) => {
 
 app.get('/comandas', async (_, res) => {
   try {
-    const snap = await comandasCol.where('status', '==', 'aberta').get()
-    const payload = snap.docs
-      .map((doc) => {
-        const comanda = docToEntity(doc)
-        return { ...comanda, itens: comanda.itens || [], total: Number(comanda.total || 0) }
-      })
-      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+    const payload = await withReadCache('GET:/comandas:abertas', async () => {
+      const snap = await comandasCol.where('status', '==', 'aberta').get()
+      return mapComandasDocs(snap)
+    })
     res.json(payload)
   } catch (err) {
     responderErroFirestore(res, err)
@@ -1059,13 +1068,28 @@ app.get('/comandas', async (_, res) => {
 
 app.get('/comandas/aguardando-pagamento', async (_, res) => {
   try {
-    const snap = await comandasCol.where('status', '==', 'aguardando_pagamento').get()
-    const payload = snap.docs
-      .map((doc) => {
-        const comanda = docToEntity(doc)
-        return { ...comanda, itens: comanda.itens || [], total: Number(comanda.total || 0) }
-      })
-      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+    const payload = await withReadCache('GET:/comandas:aguardando', async () => {
+      const snap = await comandasCol.where('status', '==', 'aguardando_pagamento').get()
+      return mapComandasDocs(snap)
+    })
+    res.json(payload)
+  } catch (err) {
+    responderErroFirestore(res, err)
+  }
+})
+
+app.get('/comandas/painel-caixa', async (_, res) => {
+  try {
+    const payload = await withReadCache('GET:/comandas:painel-caixa', async () => {
+      const [abertasSnap, aguardandoSnap] = await Promise.all([
+        comandasCol.where('status', '==', 'aberta').get(),
+        comandasCol.where('status', '==', 'aguardando_pagamento').get(),
+      ])
+      return {
+        abertas: mapComandasDocs(abertasSnap),
+        aguardando: mapComandasDocs(aguardandoSnap),
+      }
+    })
     res.json(payload)
   } catch (err) {
     responderErroFirestore(res, err)
